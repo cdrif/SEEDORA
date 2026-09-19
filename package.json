@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
   "dev": "vite",
-  "build": "npx vite build",
+  "build": "chmod +x node_modules/.bin/vite && vite build",
   "preview": "vite preview"
-},
+}
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "@tailwindcss/vite": "^4.3.3",
