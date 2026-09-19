@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../src";
 
 html, body {
     margin: 0;
@@ -11,7 +11,7 @@ html, body {
     color: #ffffff;            
     font-family: sans-serif;
 }
-
+/* ... rest of your style.css ... */
 /* Header structural layout */
 .nav-header {
     background-color: #040914; /* Deeper blue hue */
