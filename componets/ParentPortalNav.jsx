@@ -1,0 +1,59 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+
+export default function ParentPortalNav({ activeTab, schoolSlug }) {
+  const [enabledFeatures, setEnabledFeatures] = useState({});
+
+  useEffect(() => {
+    async function fetchFlags() {
+      if (!schoolSlug) return;
+      const { data, error } = await supabase
+        .from('school_feature_flags')
+        .select('feature_key, is_enabled')
+        .eq('school_slug', schoolSlug)
+        .eq('role', 'parent');
+
+      if (!error && data) {
+        const flags = {};
+        data.forEach(row => { flags[row.feature_key] = row.is_enabled; });
+        setEnabledFeatures(flags);
+      }
+    }
+    fetchFlags();
+  }, [schoolSlug]);
+
+  const allNavItems = [
+    { name: 'Overview', key: 'overview', path: `/${schoolSlug}/parent` },
+    { name: 'School Hub', key: 'hub', path: `/${schoolSlug}/parent/hub` },
+    { name: 'Homework', key: 'homework', path: `/${schoolSlug}/parent/homework` },
+    { name: 'Bus Planner', key: 'bus_planner', path: `/${schoolSlug}/transport` },
+    { name: 'Report Cards', key: 'report_cards', path: `/${schoolSlug}/parent/report-cards` },
+    { name: 'Canteen', key: 'canteen', path: `/${schoolSlug}/parent/canteen` },
+    { name: 'Behaviour', key: 'behaviour', path: `/${schoolSlug}/parent/behaviour` },
+    { name: 'Events', key: 'events', path: `/${schoolSlug}/parent/events` },
+    { name: 'Sports Itinerary', key: 'sports', path: `/${schoolSlug}/parent/sports` },
+    { name: 'Library', key: 'library', path: `/${schoolSlug}/parent/library` },
+  ];
+
+  // Filter out any items explicitly disabled in Supabase (defaults to true)[cite: 7]
+  const visibleItems = allNavItems.filter(item => enabledFeatures[item.key] !== false);
+
+  return (
+    <nav className="bg-[#111827] border-b border-gray-800 px-6 py-3 flex space-x-6 text-sm font-medium overflow-x-auto">
+      {visibleItems.map((item) => {
+        const isActive = activeTab === item.name;
+        return (
+          <a
+            key={item.name}
+            href={item.path}
+            className={`transition-colors pb-1 whitespace-nowrap ${
+              isActive ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {item.name}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
