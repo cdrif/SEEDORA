@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false); // Toggle between Login and Signup

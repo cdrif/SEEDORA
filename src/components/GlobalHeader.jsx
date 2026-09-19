@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { executeLogout } from '../utils/authLogout';
+import { executeLogout } from './authLogout';
 
 export default function GlobalHeader() {
   const { schoolSlug } = useParams(); // Grabs the slug straight from the URL path!

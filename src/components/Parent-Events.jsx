@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import GlobalHeader from './GlobalHeader';
 
 export default function ParentEvents() {
@@ -205,10 +205,10 @@ export default function ParentEvents() {
                             <h3 className="text-base font-semibold text-white">{ev.title}</h3>
                             <span className="text-sm font-mono text-indigo-400 font-bold">${Number(ev.price).toFixed(2)}</span>
                           </div>
-                          <p className="text-xs font-mono text-gray-400 mt-2 space-y-1">
+                          <div className="text-xs font-mono text-gray-400 mt-2 space-y-1">
                             <div>📍 {ev.location}</div>
                             <div>📅 {new Date(ev.event_date).toLocaleString()}</div>
-                          </p>
+                          </div>
                         </div>
 
                         <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-800 flex justify-between items-center text-xs font-mono">
