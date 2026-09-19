@@ -295,4 +295,3 @@ export default function SportsManagementTeacher() {
     </div>
   );
 }
-c
