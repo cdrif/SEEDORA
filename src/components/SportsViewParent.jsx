@@ -257,4 +257,3 @@ export default function SportsViewParent() {
     </div>
   );
 }
-```[cite: 5]
