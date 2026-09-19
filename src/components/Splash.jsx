@@ -42,11 +42,11 @@ export default function Splash() {
       {/* Center Animated Logo & Tagline */}
       <div className="flex flex-col items-center text-center space-y-6 my-auto w-full max-w-md">
         
-        {/* Chroma Wave Logo Animation & Inline Styles */}
+        {/* Chroma Wave Logo Animation & Inline Styles (Box removed) */}
         <div className="relative group">
           <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-75 blur-md animate-pulse"></div>
           
-          <div className="relative bg-[#111827] border border-gray-800 p-6 rounded-2xl flex items-center justify-center shadow-2xl">
+          <div className="relative flex items-center justify-center p-2">
             <style>{`
               @keyframes chromaWave {
                 0% { filter: hue-rotate(0deg) brightness(1); }
@@ -58,9 +58,9 @@ export default function Splash() {
               }
             `}</style>
             <img 
-              src="/logo.png" 
+              src="/seedoralogo.png" 
               alt="Seedora Logo" 
-              className="w-20 h-20 object-contain animate-chroma" 
+              className="w-24 h-24 object-contain animate-chroma" 
             />
           </div>
         </div>
