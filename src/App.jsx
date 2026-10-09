@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { supabase } from './lib/supabase'; // Adjust path if supabase.js is in a subfolder
 import Splash from './components/Splash';
 import Login from './components/Login';
 import ParentEvents from './components/Parent-Events';
@@ -9,8 +11,22 @@ import SportsManagementTeacher from './components/SportsManagementTeacher';
 import SportsViewParent from './components/SportsViewParent';
 import BugReportWidget from './components/BugReportWidget';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
+import AdminFeatureToggles from './components/AdminFeatureToggles';
 
 export default function App() {
+  // Test Supabase connection on initial app load
+  useEffect(() => {
+    async function checkConnection() {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Supabase connection error:', error.message);
+      } else {
+        console.log('Supabase connected successfully! Session:', data);
+      }
+    }
+    checkConnection();
+  }, []);
+
   return (
     <BrowserRouter
       future={{
@@ -30,6 +46,9 @@ export default function App() {
 
         {/* Super Admin Management Dashboard Route */}
         <Route path="/superadmin" element={<SuperAdminDashboard />} />
+
+        {/* Feature Matrix Control Route */}
+        <Route path="/superadmin/features" element={<AdminFeatureToggles />} />
 
         {/* Dynamic Role Routes */}
         <Route path="/:schoolSlug/parent" element={<ParentEvents />} />
