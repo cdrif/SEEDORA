@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seedora Navy - School Lost & Found Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        seedora: {
+                            950: '#070b19',
+                            900: '#0a1128',
+                            800: '#131e3a',
+                            700: '#1b2a4a',
+                            600: '#273c68',
+                            accent: '#38bdf8',
+                            gold: '#f59e0b',
+                            metallic: '#94a3b8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .metallic-card {
+            background: linear-gradient(135deg, rgba(27, 42, 74, 0.7) 0%, rgba(10, 17, 40, 0.9) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .metallic-input {
+            background: rgba(10, 17, 40, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+        .metallic-input:focus {
+            border-color: #38bdf8;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-seedora-950 text-slate-100 min-h-screen font-sans selection:bg-seedora-accent selection:text-seedora-950">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-seedora-700 bg-seedora-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-seedora-700 to-seedora-accent flex items-center justify-center shadow-lg border border-seedora-accent/30 font-bold text-xl text-white">
+                    S
+                </div>
+                <div>
+                    <h1 class="font-bold tracking-wider text-lg bg-gradient-to-r from-white via-slate-200 to-seedora-accent bg-clip-text text-transparent">SEEDORA SPORTS</h1>
+                    <p class="text-xs text-seedora-metallic font-medium tracking-widest uppercase" id="navSchoolSub">Multi-Tenant Portal</p>
+                </div>
+            </div>
+
+            <div id="userSessionArea" class="hidden flex items-center space-x-4">
+                <div class="text-right">
+                    <p class="text-sm font-semibold text-white" id="navUserName">User Name</p>
+                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-seedora-700 text-seedora-accent border border-seedora-accent/20" id="navUserRole">Role</span>
+                </div>
+                <button onclick="handleLogout()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- AUTH SCREEN -->
+        <div id="authScreen" class="max-w-md mx-auto mt-12">
+            <div class="metallic-card rounded-2xl p-8 shadow-2xl">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold tracking-tight text-white mb-2">Portal Access</h2>
+                    <p class="text-xs text-seedora-metallic">Enter your school slug, credentials, and select your clearance level.</p>
+                </div>
+
+                <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-seedora-metallic mb-1">School Slug (e.g., highland-high)</label>
+                        <input type="text" id="schoolSlugInput" required placeholder="highland-high" class="w-full px-4 py-2.5 rounded-xl metallic-input text-sm text-white placeholder-slate-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-seedora-metallic mb-1">Email Address</label>
+                        <input type="email" id="emailInput" required placeholder="name@school.edu" class="w-full px-4 py-2.5 rounded-xl metallic-input text-sm text-white placeholder-slate-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-seedora-metallic mb-1">Password</label>
+                        <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl metallic-input text-sm text-white placeholder-slate-500">
+                    </div>
+
+                    <div id="registerExtraFields" class="hidden space-y-4 pt-2 border-t border-seedora-700">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-seedora-metallic mb-1">Full Name</label>
+                            <input type="text" id="fullNameInput" placeholder="Jane Doe" class="w-full px-4 py-2.5 rounded-xl metallic-input text-sm text-white placeholder-slate-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-seedora-metallic mb-1">Portal Role / RBAC Clearance</label>
+                            <select id="roleInput" class="w-full px-4 py-2.5 rounded-xl metallic-input text-sm text-white bg-seedora-900">
+                                <option value="parent">Parent (Community Feed + Reward Toggles)</option>
+                                <option value="teacher">Teacher (Internal Student Names + Found Status Toggle)</option>
+                                <option value="admin">Admin (Full System Controls)</option>
+                                <option value="principal">Principal (Full System Executive Level)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" id="authSubmitBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 font-semibold text-white shadow-lg hover:from-sky-500 hover:to-blue-500 transition">
+                            Sign In
+                        </button>
+                    </div>
+
+                    <div class="text-center pt-2">
+                        <button type="button" onclick="toggleAuthMode()" class="text-xs text-seedora-accent hover:underline" id="authSwitchText">
+                            Need an account? Click here to register
+                        </button>
+                    </div>
+                </form>
+                <div id="authError" class="mt-4 text-center text-xs text-red-400 font-medium"></div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD CONTAINER (Lost & Found Module) -->
+        <div id="dashboardScreen" class="hidden space-y-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-seedora-800/50 p-6 rounded-2xl border border-seedora-700">
+                <div>
+                    <h2 class="text-xl font-bold text-white">School Lost & Found Registry</h2>
+                    <p class="text-xs text-seedora-metallic mt-1">Community lost items tracker. Student identity data is hidden from standard parent view and restricted strictly to authorized faculty.</p>
+                </div>
+                <button onclick="openReportModal()" class="px-5 py-2.5 rounded-xl bg-seedora-accent text-seedora-950 font-bold text-sm shadow-lg hover:bg-sky-400 transition flex items-center justify-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Report Lost Item</span>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-2">
+                    <button onclick="filterStatus('ALL')" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-seedora-700 text-white border border-seedora-accent/40 transition">All Items</button>
+                    <button onclick="filterStatus('Lost')" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-seedora-900 text-seedora-metallic border border-seedora-700 transition">Active Lost</button>
+                    <button onclick="filterStatus('Found')" class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-seedora-900 text-seedora-metallic border border-seedora-700 transition">Found / Safe</button>
+                </div>
+                <div class="text-xs text-seedora-metallic" id="itemCountLabel">Showing 0 items</div>
+            </div>
+
+            <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically injected cards -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- REPORT LOST ITEM MODAL -->
+    <div id="reportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="metallic-card rounded-2xl max-w-lg w-full p-6 border border-seedora-700 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-white">Report Lost Item</h3>
+                <button onclick="closeReportModal()" class="text-seedora-metallic hover:text-white">✕</button>
+            </div>
+
+            <form id="reportForm" onsubmit="handleReportSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Item Name / Title</label>
+                    <input type="text" id="itemName" required placeholder="e.g., Blue Branded Sports Blazer" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Category</label>
+                        <select id="itemCategory" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white bg-seedora-900">
+                            <option value="Sports Gear">Sports Gear</option>
+                            <option value="Uniform">Uniform / Apparel</option>
+                            <option value="Electronics">Electronics / Device</option>
+                            <option value="Valuables">Valuables / Eyewear</option>
+                            <option value="Other">Other Equipment</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Last Seen Location</label>
+                        <input type="text" id="lastSeen" required placeholder="e.g., Oval Bleachers" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white">
+                    </div>
+                </div>
+
+                <!-- RBAC Conditional Field: Student Name restricted to Faculty -->
+                <div id="studentNameWrapper" class="hidden p-3 rounded-xl bg-seedora-900/60 border border-seedora-700">
+                    <label class="block text-xs font-semibold uppercase text-seedora-accent mb-1">Student Full Name (Restricted to Faculty)</label>
+                    <input type="text" id="studentName" placeholder="e.g., Liam Smith (Grade 9)" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white">
+                    <p class="text-[10px] text-seedora-metallic mt-1">This name will be hidden from standard parent view.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Detailed Description</label>
+                    <textarea id="itemDesc" rows="2" placeholder="Brand tags, serial numbers..." class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Attach Photo URL / Image Link</label>
+                    <input type="url" id="itemPhotoUrl" placeholder="https://image-link-to-item.jpg" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white">
+                </div>
+
+                <div class="flex items-center space-x-3 pt-2">
+                    <input type="checkbox" id="rewardToggle" class="w-4 h-4 rounded text-seedora-accent bg-seedora-900 border-seedora-700">
+                    <label for="rewardToggle" class="text-xs font-semibold text-seedora-gold">
+                        <span>🎁 Offer Reward for Valuable Item Recovery</span>
+                    </label>
+                </div>
+
+                <div class="pt-4 flex space-x-3">
+                    <button type="button" onclick="closeReportModal()" class="w-1/2 py-2.5 rounded-xl bg-seedora-700 text-slate-300 font-semibold text-sm hover:bg-seedora-600 transition">Cancel</button>
+                    <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-seedora-accent text-seedora-950 font-bold text-sm hover:bg-sky-400 transition">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AUTOMATED CLAIMING MODAL -->
+    <div id="claimModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="metallic-card rounded-2xl max-w-md w-full p-6 border border-seedora-700">
+            <h3 class="text-lg font-bold text-white mb-2">Update Item Recovery Status</h3>
+            <p class="text-xs text-seedora-metallic mb-4">Marking this item as found records the custodian and updates the live feed globally.</p>
+            
+            <input type="hidden" id="activeClaimItemId">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">New Status</label>
+                    <select id="updateStatusSelect" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white bg-seedora-900">
+                        <option value="Found">Found / Secured at Office</option>
+                        <option value="Claimed">Claimed & Returned to Owner</option>
+                        <option value="Lost">Active Lost</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-seedora-metallic mb-1">Handled / Found By (Staff or Student)</label>
+                    <input type="text" id="foundByName" placeholder="e.g., Coach Davis or Reception Desk" class="w-full px-4 py-2 rounded-xl metallic-input text-sm text-white">
+                </div>
+
+                <div class="pt-4 flex space-x-3">
+                    <button type="button" onclick="closeClaimModal()" class="w-1/2 py-2.5 rounded-xl bg-seedora-700 text-slate-300 font-semibold text-sm">Cancel</button>
+                    <button type="button" onclick="executeStatusUpdate()" class="w-1/2 py-2.5 rounded-xl bg-seedora-accent text-seedora-950 font-bold text-sm">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://gebanropfjvpzwvytxxn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlYmFucm9wZmp2cHp3dnl0eHhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MDA5NDcsImV4cCI6MjEwNDk3Njk0N30.ZI1F4WJZDZTP_giHadFaSWph-80QY7VOGxb_bphscqU';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let isRegistering = false;
+        let currentUser = null;
+        let currentProfile = null;
+        let activeFilter = 'ALL';
+        let cachedItems = [];
+
+        // Check active session on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                await fetchUserProfileAndData();
+            }
+        });
+
+        function toggleAuthMode() {
+            isRegistering = !isRegistering;
+            const extraFields = document.getElementById('registerExtraFields');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const switchText = document.getElementById('authSwitchText');
+
+            if (isRegistering) {
+                extraFields.classList.remove('hidden');
+                submitBtn.innerText = 'Create Account & Register';
+                switchText.innerText = 'Already have an account? Sign in here';
+            } else {
+                extraFields.classList.add('hidden');
+                submitBtn.innerText = 'Sign In';
+                switchText.innerText = "Need an account? Click here to register";
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const slug = document.getElementById('schoolSlugInput').value.trim().toLowerCase();
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('authError');
+            errorEl.innerText = '';
+
+            try {
+                if (isRegistering) {
+                    const fullName = document.getElementById('fullNameInput').value.trim();
+                    const role = document.getElementById('roleInput').value;
+
+                    let { data: schoolCheck } = await supabaseClient.from('schools').select('*').eq('slug', slug).single();
+                    let schoolId;
+                    if (!schoolCheck) {
+                        const { data: newSchool, error: schoolErr } = await supabaseClient.from('schools').insert([{ slug, name: slug.toUpperCase() }]).select().single();
+                        if (schoolErr) throw schoolErr;
+                        schoolId = newSchool.id;
+                    } else {
+                        schoolId = schoolCheck.id;
+                    }
+
+                    const { data: authData, error: authError } = await supabaseClient.auth.signUp({ email, password });
+                    if (authError) throw authError;
+
+                    if (authData.user) {
+                        const { error: profileError } = await supabaseClient.from('profiles').insert([{
+                            id: authData.user.id,
+                            school_id: schoolId,
+                            full_name: fullName,
+                            role: role
+                        }]);
+                        if (profileError) throw profileError;
+                    }
+                    alert('Registration successful! Please sign in.');
+                    toggleAuthMode();
+                } else {
+                    const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (authError) throw authError;
+
+                    currentUser = authData.user;
+                    await fetchUserProfileAndData(slug);
+                }
+            } catch (err) {
+                errorEl.innerText = err.message;
+            }
+        }
+
+        async function fetchUserProfileAndData(slug = '') {
+            try {
+                const { data: profile, error } = await supabaseClient
+                    .from('profiles')
+                    .select('*, schools(*)')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (error || !profile) throw new Error('User profile record not found.');
+                currentProfile = profile;
+
+                document.getElementById('navUserName').innerText = currentProfile.full_name;
+                document.getElementById('navUserRole').innerText = currentProfile.role.toUpperCase();
+                document.getElementById('navSchoolSub').innerText = currentProfile.schools?.name || (slug ? slug.toUpperCase() : 'PORTAL');
+                
+                // Hide auth screen and display dashboard immediately
+                document.getElementById('userSessionArea').classList.remove('hidden');
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('authScreen').style.display = 'none';
+                
+                const dashboard = document.getElementById('dashboardScreen');
+                dashboard.classList.remove('hidden');
+                dashboard.style.display = 'block';
+
+                loadLostItems();
+            } catch (err) {
+                const errEl = document.getElementById('authError');
+                if (errEl) errEl.innerText = err.message;
+            }
+        }
+
+        async function loadLostItems() {
+            if (!currentProfile) return;
+            const { data, error } = await supabaseClient
+                .from('lost_items')
+                .select('*')
+                .eq('school_id', currentProfile.school_id)
+                .order('created_at', { ascending: false });
+
+            if (!error) {
+                cachedItems = data || [];
+                renderItems();
+            }
+        }
+
+        function filterStatus(status) {
+            activeFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-seedora-700', 'text-white', 'border-seedora-accent/40');
+                btn.classList.add('bg-seedora-900', 'text-seedora-metallic', 'border-seedora-700');
+            });
+            event.target.classList.remove('bg-seedora-900', 'text-seedora-metallic', 'border-seedora-700');
+            event.target.classList.add('bg-seedora-700', 'text-white', 'border-seedora-accent/40');
+            renderItems();
+        }
+
+        function renderItems() {
+            const grid = document.getElementById('itemsGrid');
+            grid.innerHTML = '';
+
+            const filtered = cachedItems.filter(item => {
+                if (activeFilter === 'ALL') return true;
+                return item.status === activeFilter;
+            });
+
+            document.getElementById('itemCountLabel').innerText = `Showing ${filtered.length} items`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-seedora-metallic text-sm">No items matching current filter.</div>`;
+                return;
+            }
+
+            const isFaculty = ['teacher', 'admin', 'principal'].includes(currentProfile.role);
+
+            filtered.forEach(item => {
+                const isFound = item.status === 'Found' || item.status === 'Claimed';
+                const statusBadge = isFound 
+                    ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Found / Secured</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">Active Lost</span>`;
+
+                const rewardBadge = item.has_reward 
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-seedora-gold/20 text-seedora-gold border border-seedora-gold/30">🎁 Reward Offered</span>`
+                    : '';
+
+                const studentRow = (isFaculty && item.student_name) 
+                    ? `<p class="text-xs text-seedora-accent font-medium mt-1">👤 Student: ${escapeHtml(item.student_name)}</p>` 
+                    : '';
+
+                const actionBtn = isFaculty 
+                    ? `<button onclick="openClaimModal('${item.id}', '${item.status}')" class="w-full mt-4 py-2 rounded-xl bg-seedora-700 hover:bg-seedora-600 text-xs font-semibold text-white transition">Update Status / Claim</button>`
+                    : '';
+
+                const imgBlock = item.photo_url 
+                    ? `<div class="h-40 w-full overflow-hidden rounded-xl mb-3 bg-seedora-950"><img src="${escapeHtml(item.photo_url)}" alt="Item photo" class="w-full h-full object-cover"></div>`
+                    : '';
+
+                const card = document.createElement('div');
+                card.className = 'metallic-card rounded-2xl p-5 flex flex-col justify-between border border-seedora-700';
+                card.innerHTML = `
+                    <div>
+                        ${imgBlock}
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            ${statusBadge}
+                            ${rewardBadge}
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-1">${escapeHtml(item.item_name)}</h3>
+                        <p class="text-xs text-seedora-metallic mb-2">📍 Last Seen: ${escapeHtml(item.last_seen)}</p>
+                        <p class="text-xs text-slate-300 mb-3">${escapeHtml(item.description || 'No additional description provided.')}</p>
+                        ${studentRow}
+                    </div>
+                    ${actionBtn}
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openReportModal() {
+            if (['teacher', 'admin', 'principal'].includes(currentProfile.role)) {
+                document.getElementById('studentNameWrapper').classList.remove('hidden');
+            }
+            document.getElementById('reportModal').classList.remove('hidden');
+            document.getElementById('reportModal').classList.add('flex');
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').classList.remove('flex');
+            document.getElementById('reportModal').classList.add('hidden');
+            document.getElementById('reportForm').reset();
+            document.getElementById('studentNameWrapper').classList.add('hidden');
+        }
+
+        async function handleReportSubmit(e) {
+            e.preventDefault();
+            const itemName = document.getElementById('itemName').value.trim();
+            const category = document.getElementById('itemCategory').value;
+            const lastSeen = document.getElementById('lastSeen').value.trim();
+            const description = document.getElementById('itemDesc').value.trim();
+            const photoUrl = document.getElementById('itemPhotoUrl').value.trim();
+            const hasReward = document.getElementById('rewardToggle').checked;
+            const studentName = document.getElementById('studentName').value.trim();
+
+            const { error } = await supabaseClient.from('lost_items').insert([{
+                school_id: currentProfile.school_id,
+                item_name: itemName,
+                category: category,
+                last_seen: lastSeen,
+                description: description,
+                photo_url: photoUrl,
+                has_reward: hasReward,
+                student_name: studentName || null,
+                status: 'Lost',
+                reported_by: currentProfile.id
+            }]);
+
+            if (error) {
+                alert('Error submitting report: ' + error.message);
+            } else {
+                closeReportModal();
+                loadLostItems();
+            }
+        }
+
+        function openClaimModal(itemId, currentStatus) {
+            document.getElementById('activeClaimItemId').value = itemId;
+            document.getElementById('updateStatusSelect').value = currentStatus === 'Lost' ? 'Found' : currentStatus;
+            document.getElementById('claimModal').classList.remove('hidden');
+            document.getElementById('claimModal').classList.add('flex');
+        }
+
+        function closeClaimModal() {
+            document.getElementById('claimModal').classList.remove('flex');
+            document.getElementById('claimModal').classList.add('hidden');
+        }
+
+        async function executeStatusUpdate() {
+            const itemId = document.getElementById('activeClaimItemId').value;
+            const newStatus = document.getElementById('updateStatusSelect').value;
+            const foundBy = document.getElementById('foundByName').value.trim();
+
+            const { error } = await supabaseClient
+                .from('lost_items')
+                .update({ 
+                    status: newStatus,
+                    found_by: foundBy || null 
+                })
+                .eq('id', itemId);
+
+            if (error) {
+                alert('Error updating status: ' + error.message);
+            } else {
+                closeClaimModal();
+                loadLostItems();
+            }
+        }
+
+        function handleLogout() {
+            supabaseClient.auth.signOut().then(() => {
+                location.reload();
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
