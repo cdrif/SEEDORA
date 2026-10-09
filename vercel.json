@@ -13,7 +13,8 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
         { "key": "Cross-Origin-Embedder-Policy", "value": "credentialless" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; connect-src 'self' https://*.supabase.co; style-src 'self'; img-src 'self' data:;" }
+        { "key": "Access-Control-Allow-Origin", "value": "https://cdrifseed.vercel.app" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; connect-src 'self' https://*.supabase.co; style-src 'self'; img-src 'self' data:;" }
       ]
     }
   ]
