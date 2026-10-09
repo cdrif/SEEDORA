@@ -14,6 +14,7 @@
         { "key": "Cross-Origin-Embedder-Policy", "value": "credentialless" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
         { "key": "Access-Control-Allow-Origin", "value": "https://cdrifseed.vercel.app" },
+        { "key": "Cache-Control", "value": "no-store, max-age=0" },
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; connect-src 'self' https://*.supabase.co; style-src 'self'; img-src 'self' data:;" }
       ]
     }
