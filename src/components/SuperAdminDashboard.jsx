@@ -81,7 +81,7 @@ export default function SuperAdminDashboard() {
     try {
       const [schoolsRes, logsRes, bugsRes, todosRes, featuresRes] = await Promise.all([
         supabase.from('schools').select('*'),
-        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }),
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false })
         supabase.from('bug_reports').select('*'),
         supabase.from('employee_todos').select('*'),
         supabase.from('school_features').select('*')

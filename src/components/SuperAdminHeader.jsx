@@ -83,7 +83,7 @@ export default function SuperAdminDashboard() {
   };
 
   const fetchAuditLogs = async () => {
-    const { data, error } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
+    const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
     if (!error && data) setAuditLogs(data);
   };
 
