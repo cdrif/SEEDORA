@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { executeLogout } from './authLogout';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 
 export default function GlobalHeader() {
-  const { schoolSlug } = useParams(); // Grabs the slug straight from the URL path[cite: 3]
+  const { schoolSlug } = useParams(); // Grabs the slug straight from the URL path[cite: 2]
   const navigate = useNavigate();
   const [schoolLogo, setSchoolLogo] = useState('');
 
@@ -31,7 +31,7 @@ export default function GlobalHeader() {
   }, [schoolSlug]);
 
   const handleLogout = async () => {
-    await executeLogout(navigate); //[cite: 3]
+    await executeLogout(navigate); //[cite: 2]
   };
 
   return (
