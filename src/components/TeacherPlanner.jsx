@@ -6,6 +6,7 @@ export default function TeacherPlanner() {
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState([]);
   const [schoolSlug, setSchoolSlug] = useState('');
+  const [availableGrades, setAvailableGrades] = useState(['Grade 8', 'Grade 9', 'Grade 10']);
   
   // Form State
   const [date, setDate] = useState('');
@@ -43,6 +44,7 @@ export default function TeacherPlanner() {
       setSchoolSlug(currentSlug);
 
       if (currentSlug) {
+        // Fetch schedules
         const { data: scheduleData, error: sError } = await supabase
           .from('teacher_schedules')
           .select('*')
@@ -51,6 +53,17 @@ export default function TeacherPlanner() {
 
         if (sError) throw sError;
         setSchedules(scheduleData || []);
+
+        // Fetch unique grade levels from students table for this tenant
+        const { data: gradeData } = await supabase
+          .from('students')
+          .select('grade_level')
+          .eq('school_slug', currentSlug);
+
+        if (gradeData && gradeData.length > 0) {
+          const uniqueGrades = [...new Set(gradeData.map(s => s.grade_level))];
+          setAvailableGrades(uniqueGrades);
+        }
       }
     } catch (err) {
       console.error('Error loading teacher schedules:', err.message);
@@ -120,155 +133,161 @@ export default function TeacherPlanner() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-white">
+    <div className="min-h-screen bg-[#0b0f19] text-gray-100 antialiased">
       <GlobalHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Teacher Daily & Weekly Planner</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Plan classes up to a month in advance, assign modules, and review historical schedules securely.
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Teacher Daily & Monthly Planner</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-2 max-w-2xl">
+            Allocate classes, stipulate grade levels, subjects, and timeslots up to a month in advance.
           </p>
         </div>
 
         {/* Schedule Entry Form */}
-        <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 mb-8 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-100 mb-4">Add New Class Schedule / Module</h3>
-          <form onSubmit={handleCreateSchedule} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-[#111827] border border-gray-800 rounded-2xl p-6 sm:p-8 mb-10 shadow-lg">
+          <h3 className="text-lg font-semibold text-white mb-6">Add Class Allocation</h3>
+          <form onSubmit={handleCreateSchedule} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">Date</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Date</label>
               <input 
                 type="date" 
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">Start Time</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Start Timeslot</label>
               <input 
                 type="time" 
                 value={startTime} 
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">End Time</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">End Timeslot</label>
               <input 
                 type="time" 
                 value={endTime} 
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">Grade Level (Eg. Grade 2)</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Grade Level</label>
               <input 
                 type="text" 
-                placeholder="Grade 2"
+                list="grade-options"
+                placeholder="e.g. Grade 8"
                 value={gradeLevel} 
                 onChange={(e) => setGradeLevel(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
+              <datalist id="grade-options">
+                {availableGrades.map((grade) => (
+                  <option key={grade} value={grade} />
+                ))}
+              </datalist>
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">Subject (Eg. Art)</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Subject</label>
               <input 
                 type="text" 
-                placeholder="Art"
+                placeholder="e.g. Mathematics"
                 value={subject} 
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-400 mb-1">Module Name / Topic</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Module Name / Topic</label>
               <input 
                 type="text" 
-                placeholder="Watercolors & Perspective"
+                placeholder="e.g. Algebra Fundamentals"
                 value={moduleName} 
                 onChange={(e) => setModuleName(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 required
               />
             </div>
             <div className="sm:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-mono text-gray-400 mb-1">Lesson Details / Catch-up Notes</label>
+              <label className="block text-xs font-medium text-gray-300 mb-2">Lesson Details / Notes (Optional)</label>
               <textarea 
-                rows="2"
-                placeholder="Outline what students will cover today..."
+                rows="3"
+                placeholder="Outline class requirements..."
                 value={description} 
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
               />
             </div>
-            <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
+            <div className="sm:col-span-2 lg:col-span-3 flex justify-end pt-2">
               <button 
                 type="submit" 
                 disabled={submitting}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-md transition-all disabled:opacity-50"
               >
-                {submitting ? 'Publishing...' : 'Publish Schedule Entry'}
+                {submitting ? 'Publishing...' : 'Publish Class Allocation'}
               </button>
             </div>
           </form>
         </div>
 
         {/* Historical Records & Search Controls */}
-        <div className="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-base font-semibold text-gray-100">Historical Schedule Records</h3>
+        <div className="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden shadow-lg">
+          <div className="p-6 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h3 className="text-lg font-semibold text-white">Allotted Classes History</h3>
             
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <input 
                 type="text" 
                 placeholder="Search subject, module..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               />
               <input 
                 type="text" 
                 placeholder="Filter grade..."
                 value={filterGrade}
                 onChange={(e) => setFilterGrade(e.target.value)}
-                className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono w-32"
+                className="bg-gray-900/80 border border-gray-700/80 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition sm:w-36"
               />
             </div>
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-400 text-sm">Loading historical records...</div>
+            <div className="p-8 text-gray-400 text-sm text-center">Loading allotted records...</div>
           ) : paginatedSchedules.length === 0 ? (
-            <div className="p-6 text-gray-400 text-sm">No schedule entries found matching criteria.</div>
+            <div className="p-8 text-gray-400 text-sm text-center">No class allocations found.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 bg-gray-900/50 font-mono text-xs">
-                    <th className="py-3 px-6">Date</th>
-                    <th className="py-3 px-6">Time</th>
-                    <th className="py-3 px-6">Grade</th>
-                    <th className="py-3 px-6">Subject</th>
-                    <th className="py-3 px-6">Module</th>
-                    <th className="py-3 px-6">Details</th>
+                  <tr className="border-b border-gray-800 text-gray-400 bg-gray-900/40 text-xs font-semibold uppercase tracking-wider">
+                    <th className="py-4 px-6">Date</th>
+                    <th className="py-4 px-6">Timeslot</th>
+                    <th className="py-4 px-6">Grade Level</th>
+                    <th className="py-4 px-6">Subject</th>
+                    <th className="py-4 px-6">Module</th>
+                    <th className="py-4 px-6">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800/60 font-mono text-xs">
+                <tbody className="divide-y divide-gray-800/60 text-sm">
                   {paginatedSchedules.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-900/30 transition-colors">
-                      <td className="py-3 px-6 text-gray-300">{item.date}</td>
-                      <td className="py-3 px-6 text-gray-300">{item.start_time} - {item.end_time}</td>
-                      <td className="py-3 px-6 text-indigo-300 font-bold">{item.grade_level}</td>
-                      <td className="py-3 px-6 text-gray-200 font-sans font-medium">{item.subject}</td>
-                      <td className="py-3 px-6 text-gray-300">{item.module_name}</td>
-                      <td className="py-3 px-6 text-gray-400 max-w-xs truncate">{item.description || '—'}</td>
+                      <td className="py-4 px-6 text-gray-300 font-medium whitespace-nowrap">{item.date}</td>
+                      <td className="py-4 px-6 text-gray-300 whitespace-nowrap">{item.start_time} - {item.end_time}</td>
+                      <td className="py-4 px-6 text-indigo-400 font-semibold whitespace-nowrap">{item.grade_level}</td>
+                      <td className="py-4 px-6 text-white font-medium whitespace-nowrap">{item.subject}</td>
+                      <td className="py-4 px-6 text-gray-300">{item.module_name}</td>
+                      <td className="py-4 px-6 text-gray-400 max-w-xs truncate">{item.description || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -277,20 +296,20 @@ export default function TeacherPlanner() {
           )}
 
           {/* Pagination Footer */}
-          <div className="px-6 py-4 border-t border-gray-800 flex justify-between items-center text-xs font-mono text-gray-400">
+          <div className="px-6 py-4 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-400">
             <span>Page {currentPage} of {totalPages}</span>
             <div className="flex gap-2">
               <button 
                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 bg-gray-900 border border-gray-800 rounded hover:bg-gray-800 disabled:opacity-40"
+                className="px-4 py-2 bg-gray-900 border border-gray-700/80 rounded-xl hover:bg-gray-800 transition disabled:opacity-40 text-gray-200 text-xs font-medium"
               >
                 Previous
               </button>
               <button 
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-gray-900 border border-gray-800 rounded hover:bg-gray-800 disabled:opacity-40"
+                className="px-4 py-2 bg-gray-900 border border-gray-700/80 rounded-xl hover:bg-gray-800 transition disabled:opacity-40 text-gray-200 text-xs font-medium"
               >
                 Next
               </button>

@@ -113,7 +113,7 @@ export default function TeachReportCard() {
     }
   };
 
-  // Submit Report Card with timestamp and AI summary
+  // Submit Report Card with timestamp, AI summary, and verified signature payload
   const handleSubmitReportCard = async (e) => {
     e.preventDefault();
     if (!selectedStudent || !subject || !gradeReview) {
@@ -138,12 +138,13 @@ export default function TeachReportCard() {
           excelling_in: excellingIn,
           needs_improvement: needsImprovement,
           ai_summary: aiSummary || `Performance review for ${subject} submitted successfully.`,
+          signature_data: savedSignature, // Ingests teacher signature directly onto report record
           created_at: new Date().toISOString() // Historic timestamp
         }]);
 
       if (error) throw error;
 
-      alert('Report card successfully saved with timestamp!');
+      alert('Report card successfully saved with timestamp and verified signature!');
       // Reset form fields
       setSubject('');
       setGradeReview('');
@@ -315,7 +316,7 @@ export default function TeachReportCard() {
               <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                 <div>
                   <h3 className="text-base font-semibold text-gray-100">Historical Report Card Archive</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Chronologically logged reports stored securely with timestamps.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Chronologically logged reports stored securely with timestamps and verified teacher signatures.</p>
                 </div>
                 <span className="text-xs font-mono text-gray-400 bg-gray-900 px-3 py-1 rounded border border-gray-800">
                   Total Archived: {reportHistory.length}
@@ -331,7 +332,7 @@ export default function TeachReportCard() {
                       <tr className="border-b border-gray-800 text-gray-400 bg-gray-900/50 font-mono text-xs">
                         <th className="py-3 px-6">Timestamp (UTC)</th>
                         <th className="py-3 px-6">Student</th>
-                        <th className="py-3 px-6">Subject</th>
+                        <th className="py-3 px-6">Subject & Verified Signature</th>
                         <th className="py-3 px-6">Grade Review</th>
                         <th className="py-3 px-6">AI Summary</th>
                       </tr>
@@ -345,8 +346,9 @@ export default function TeachReportCard() {
                           <td className="py-3 px-6 text-gray-200 font-sans font-medium">
                             {rep.students ? `${rep.students.first_name} ${rep.students.last_name}` : 'Student'}
                           </td>
-                          <td className="py-3 px-6 text-indigo-300 font-semibold">
-                            {rep.subject}
+                          <td className="py-3 px-6">
+                            <div className="text-indigo-300 font-semibold">{rep.subject}</div>
+                            <div className="text-[10px] text-gray-400 font-mono mt-0.5">Sig: {rep.signature_data || savedSignature || 'N/A'}</div>
                           </td>
                           <td className="py-3 px-6 text-gray-300 max-w-xs truncate">
                             {rep.grade_review}

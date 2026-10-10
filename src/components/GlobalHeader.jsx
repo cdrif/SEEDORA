@@ -4,9 +4,14 @@ import { executeLogout } from './authLogout';
 import { supabase } from '../lib/supabase';
 
 export default function GlobalHeader() {
-  const { schoolSlug } = useParams(); // Grabs the slug straight from the URL path[cite: 2]
+  const { schoolSlug } = useParams(); // Grabs the slug straight from the URL path
   const navigate = useNavigate();
   const [schoolLogo, setSchoolLogo] = useState('');
+  
+  // Language Selector State (persists across pages using localStorage)
+  const [selectedLang, setSelectedLang] = useState(() => {
+    return localStorage.getItem('seedora_lang') || 'en';
+  });
 
   // Fetch school logo based on the current school slug from the database
   useEffect(() => {
@@ -30,8 +35,31 @@ export default function GlobalHeader() {
     fetchSchoolLogo();
   }, [schoolSlug]);
 
+  // Handle language change (updates localStorage and syncs with Supabase profile)
+  const handleLanguageChange = async (e) => {
+    const newLang = e.target.value;
+    setSelectedLang(newLang);
+    localStorage.setItem('seedora_lang', newLang);
+    
+    // Save preference to Supabase if user is logged in
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ preferred_language: newLang })
+          .eq('id', user.id);
+      }
+    } catch (err) {
+      console.error('Error saving language preference to database:', err.message);
+    }
+    
+    // Trigger window event so active panels can update immediately
+    window.dispatchEvent(new Event('languageChange'));
+  };
+
   const handleLogout = async () => {
-    await executeLogout(navigate); //[cite: 2]
+    await executeLogout(navigate);
   };
 
   return (
@@ -70,13 +98,40 @@ export default function GlobalHeader() {
         )}
       </div>
 
-      {/* Right Section: Log Out Button */}
-      <button
-        onClick={handleLogout}
-        className="px-4 py-1.5 text-sm font-medium text-gray-200 bg-transparent border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
-      >
-        Log Out
-      </button>
+      {/* Right Section: Top 15 Language Selector & Log Out Button */}
+      <div className="flex items-center space-x-4">
+        {/* Top 15 Global Languages Dropdown */}
+        <select
+          value={selectedLang}
+          onChange={handleLanguageChange}
+          aria-label="Select language"
+          className="bg-gray-900 border border-gray-700 text-xs font-medium rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
+        >
+          <option value="en">English</option>
+          <option value="zh">中文 (Mandarin Chinese)</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="es">Español (Spanish)</option>
+          <option value="fr">Français (French)</option>
+          <option value="ar">العربية (Arabic)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+          <option value="pt">Português (Portuguese)</option>
+          <option value="ru">Русский (Russian)</option>
+          <option value="ur">اردو (Urdu)</option>
+          <option value="id">Bahasa Indonesia (Indonesian)</option>
+          <option value="de">Deutsch (German)</option>
+          <option value="ja">日本語 (Japanese)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="jv">Basa Jawa (Javanese)</option>
+        </select>
+
+        {/* Log Out Button */}
+        <button
+          onClick={handleLogout}
+          className="px-4 py-1.5 text-sm font-medium text-gray-200 bg-transparent border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
+        >
+          Log Out
+        </button>
+      </div>
     </header>
   );
 }
