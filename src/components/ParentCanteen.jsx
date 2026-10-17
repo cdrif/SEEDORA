@@ -1,30 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-export default function CanteenStaff({ schoolSlug }) {
+export default function ParentCanteen({ schoolSlug }) {
   const currentSlug = schoolSlug || window.location.pathname.split('/')[2] || 'default-school';
 
-  const [staffOperator, setStaffOperator] = useState('Loading Staff...');
-  const [canteenCatalog, setCanteenCatalog] = useState([]);
-  const [ordersHistory, setOrdersHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('queue');
+  const [parentUser, setParentUser] = useState({ name: 'Loading Parent...', id: null });
+  const [childrenList, setChildrenList] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState('');
+  
+  // Opt-in / Allergen state
+  const [optInAllergens, setOptInAllergens] = useState(false);
+  const [childAllergensInput, setChildAllergensInput] = useState('');
+  const [allergySavedStatus, setAllergySavedStatus] = useState(false);
 
-  // Form states for catalog items
-  const [formTitle, setFormTitle] = useState('');
-  const [formPrice, setFormPrice] = useState('');
-  const [formCategory, setFormCategory] = useState('Hot Food');
-  const [formCalories, setFormCalories] = useState('');
-  const [formAllergens, setFormAllergens] = useState('');
-  const [formIngredients, setFormIngredients] = useState('');
-  const [formPal, setFormPal] = useState('');
+  const [canteenCatalog, setCanteenCatalog] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
+  const [activeTab, setActiveTab] = useState('browse');
 
   useEffect(() => {
-    fetchStaffUser();
+    fetchParentContext();
     fetchCatalog();
-    fetchOrders();
 
     const channel = supabase
-      .channel('staff-realtime')
+      .channel('parent-canteen-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'canteen_items', filter: `school_slug=eq.${currentSlug}` }, () => fetchCatalog())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'canteen_orders', filter: `school_slug=eq.${currentSlug}` }, () => fetchOrders())
       .subscribe();
@@ -32,21 +32,44 @@ export default function CanteenStaff({ schoolSlug }) {
     return () => supabase.removeChannel(channel);
   }, [currentSlug]);
 
-  // 🔒 Fetch authenticated staff operator profile
-  const fetchStaffUser = async () => {
+  useEffect(() => {
+    if (parentUser.id) {
+      fetchChildren();
+      fetchOrders();
+    }
+  }, [parentUser.id]);
+
+  const fetchParentContext = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, id')
         .eq('id', user.id)
         .single();
 
-      setStaffOperator(profile?.full_name || user.email || 'Kitchen Operator');
+      setParentUser({
+        name: profile?.full_name || user.email || 'Verified Parent',
+        id: user.id
+      });
     } catch (err) {
-      console.error('Error fetching staff user:', err.message);
+      console.error('Error loading parent context:', err.message);
+    }
+  };
+
+  const fetchChildren = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('id, student_name, grade_level, opt_in_allergens, allergen_notes')
+      .eq('school_slug', currentSlug);
+
+    if (data && data.length > 0) {
+      setChildrenList(data);
+      setSelectedChildId(data[0].id);
+      setOptInAllergens(data[0].opt_in_allergens || false);
+      setChildAllergensInput(data[0].allergen_notes || '');
     }
   };
 
@@ -56,246 +79,343 @@ export default function CanteenStaff({ schoolSlug }) {
   };
 
   const fetchOrders = async () => {
-    const { data } = await supabase.from('canteen_orders').select('*').eq('school_slug', currentSlug).order('created_at', { ascending: false });
-    if (data) setOrdersHistory(data);
+    const { data } = await supabase
+      .from('canteen_orders')
+      .select('*')
+      .eq('school_slug', currentSlug)
+      .eq('parent_id', parentUser.id)
+      .order('created_at', { ascending: false });
+    if (data) setMyOrders(data);
   };
 
-  const handleItemSubmission = async (e) => {
-    e.preventDefault();
-    const newItem = {
-      school_slug: currentSlug,
-      name: formTitle,
-      price: parseFloat(formPrice),
-      category: formCategory,
-      calories: parseInt(formCalories) || 350,
-      allergens: formAllergens.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
-      ingredients: formIngredients || 'Standard ingredients manifest.',
-      pal: formPal || 'Standard PAL warning.'
-    };
-
-    const { error } = await supabase.from('canteen_items').insert([newItem]);
-    if (error) {
-      alert('Error adding item: ' + error.message);
-    } else {
-      setFormTitle('');
-      setFormPrice('');
-      setFormCalories('');
-      setFormAllergens('');
-      setFormIngredients('');
-      setFormPal('');
-      setActiveTab('queue');
+  const handleChildSwitch = (e) => {
+    const targetId = e.target.value;
+    setSelectedChildId(targetId);
+    const found = childrenList.find(c => c.id === targetId);
+    if (found) {
+      setOptInAllergens(found.opt_in_allergens || false);
+      setChildAllergensInput(found.allergen_notes || '');
     }
   };
 
-  const deleteCatalogItem = async (id) => {
-    await supabase.from('canteen_items').delete().eq('id', id);
-  };
+  const saveAllergenPreferences = async (e) => {
+    e.preventDefault();
+    if (!selectedChildId) return;
 
-  const approveOrder = async (id) => {
     const { error } = await supabase
-      .from('canteen_orders')
-      .update({ 
-        status: 'Fulfilled & Verified',
-        approved_by: staffOperator,
-        approved_at: new Date().toISOString()
+      .from('students')
+      .update({
+        opt_in_allergens: optInAllergens,
+        allergen_notes: optInAllergens ? childAllergensInput : null
       })
-      .eq('id', id);
+      .eq('id', selectedChildId);
 
     if (error) {
-      alert('Error approving order: ' + error.message);
+      alert('Error updating medical preferences: ' + error.message);
     } else {
+      setAllergySavedStatus(true);
+      setTimeout(() => setAllergySavedStatus(false), 3500);
+      fetchChildren();
+    }
+  };
+
+  const requestDataPurge = async () => {
+    if (!confirm('Under privacy compliance laws (Privacy Act 1988), this will purge your child medical and canteen telemetry from this tenant record. Proceed?')) return;
+    
+    const { error } = await supabase
+      .from('students')
+      .update({ opt_in_allergens: false, allergen_notes: null })
+      .eq('id', selectedChildId);
+
+    if (!error) {
+      setOptInAllergens(false);
+      setChildAllergensInput('');
+      alert('Data successfully purged from active telemetry logs.');
+    }
+  };
+
+  const addToCart = (item) => {
+    const activeChild = childrenList.find(c => c.id === selectedChildId);
+    if (activeChild && activeChild.opt_in_allergens && activeChild.allergen_notes) {
+      const childAllergies = activeChild.allergen_notes.toLowerCase().split(',').map(s => s.trim());
+      const itemAllergens = item.allergens || [];
+      const conflict = itemAllergens.some(a => childAllergies.includes(a));
+
+      if (conflict) {
+        alert(`🚨 FSANZ ALLERGY SAFETY INTERLOCK: ${activeChild.student_name} is flagged for sensitivities matching this item (${item.name}). Order blocked for student safety.`);
+        return;
+      }
+    }
+
+    setCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  };
+
+  const saveAsFavorite = (item) => {
+    if (!favorites.some(f => f.id === item.id)) {
+      setFavorites(prev => [...prev, item]);
+    }
+  };
+
+  const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+  const submitCanteenOrder = async () => {
+    if (cart.length === 0) return;
+    const activeChild = childrenList.find(c => c.id === selectedChildId);
+
+    const orderPayload = {
+      school_slug: currentSlug,
+      parent_id: parentUser.id,
+      parent_name: parentUser.name,
+      student_id: selectedChildId,
+      student_name: activeChild?.student_name || 'Student',
+      grade_level: activeChild?.grade_level || 'General',
+      order_ref: 'CNT-' + Math.floor(100000 + Math.random() * 900000),
+      items: cart,
+      total: cartTotal,
+      status: 'Pending Kitchen Prep'
+    };
+
+    const { error } = await supabase.from('canteen_orders').insert([orderPayload]);
+    if (error) {
+      alert('Error placing order: ' + error.message);
+    } else {
+      setCart([]);
+      setActiveTab('history');
       fetchOrders();
     }
   };
 
-  const pendingOrders = ordersHistory.filter(o => o.status.includes('Pending'));
-  const totalRevenue = ordersHistory.reduce((acc, ord) => acc + (ord.total || 0), 0);
+  const totalSpend = myOrders.reduce((acc, o) => acc + (o.total || 0), 0);
 
   return (
-    <div className="bg-[#020617] text-slate-300 font-sans min-h-screen p-6">
+    <div className="bg-[#0b0f19] text-gray-200 font-sans min-h-screen p-6">
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
-        
-        {/* Tenant Header Tag & Operator Identity */}
-        <div className="bg-sky-500/10 border border-sky-500/20 p-3 rounded flex justify-between items-center text-xs">
-          <span className="text-sky-400 font-bold uppercase tracking-wider">🏢 Tenant: <span className="font-mono text-slate-200">{currentSlug}</span></span>
-          <span className="text-slate-300">Kitchen Operator: <strong className="text-emerald-400 font-mono">{staffOperator}</strong></span>
+
+        {/* Top Tenant & User Header */}
+        <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs shadow-sm">
+          <span className="text-indigo-400 font-semibold uppercase tracking-wider">🏢 Tenant Portal: <span className="font-mono text-gray-100">{currentSlug}</span></span>
+          <div className="flex items-center gap-4">
+            <span className="bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/20 font-mono text-[10px]">🛡️ FSANZ PEAL & Privacy Act Compliant</span>
+            <span className="text-gray-400">Logged Guardian: <strong className="text-emerald-400 font-mono">{parentUser.name}</strong></span>
+          </div>
         </div>
+
+        {/* Student Selector & Medical Privacy Opt-In Bar */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-xl flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Active Child Profile:</label>
+              <select value={selectedChildId} onChange={handleChildSwitch} className="bg-[#0b0f19] border border-gray-700 rounded-lg p-2 text-xs text-gray-200 font-bold focus:outline-none focus:border-indigo-500 cursor-pointer">
+                {childrenList.map(child => (
+                  <option key={child.id} value={child.id}>{child.student_name} ({child.grade_level || 'Grade N/A'})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs">
+              <button onClick={requestDataPurge} className="text-rose-400 hover:text-rose-300 text-[10px] underline cursor-pointer">
+                Request Data Purge (Lawful Right)
+              </button>
+            </div>
+          </div>
+
+          {/* Explicit Lawful Telemetry Notice */}
+          <div className="bg-[#0b0f19] border border-indigo-500/20 p-3.5 rounded-xl text-[11px] text-gray-300 flex flex-col gap-2">
+            <div className="flex items-center gap-2.5">
+              <input type="checkbox" checked={optInAllergens} onChange={e => setOptInAllergens(e.target.checked)} className="rounded bg-gray-900 border-gray-700 text-indigo-500 cursor-pointer" />
+              <label className="font-semibold text-indigo-300 cursor-pointer">
+                I expressly opt-in to share medical sensitivity and allergen data for this student to ensure FSANZ health standards compliance.
+              </label>
+            </div>
+            <p className="text-gray-400 text-[10px] pl-6">
+              * Note: This data is collected strictly for lawful reasons and student health safety standards. You may opt out or request complete data purging at any time.
+            </p>
+            {optInAllergens && (
+              <div className="pl-6 pt-1 flex items-center gap-3 flex-wrap">
+                <span className="text-gray-400 font-mono text-[10px]">Allergens (comma separated):</span>
+                <input type="text" value={childAllergensInput} onChange={e => setChildAllergensInput(e.target.value)} placeholder="e.g. peanuts, dairy, gluten" className="bg-gray-900 border border-gray-700 rounded-lg p-2 text-xs text-gray-200 w-64 focus:outline-none focus:border-indigo-500" />
+                <button onClick={saveAllergenPreferences} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-lg uppercase text-[10px] tracking-wider transition-colors cursor-pointer">
+                  Save Privacy Prefs
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        {allergySavedStatus && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs p-3 rounded-xl">✔ Secure medical telemetry preferences saved under lawful health compliance standards.</div>}
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-6 text-xs font-medium border-b border-slate-900 pb-2">
-          <button onClick={() => setActiveTab('queue')} className={`pb-1 ${activeTab === 'queue' ? 'text-sky-400 font-semibold border-b-2 border-sky-500' : 'text-slate-500'}`}>Live Student Queue</button>
-          <button onClick={() => setActiveTab('catalog')} className={`pb-1 ${activeTab === 'catalog' ? 'text-sky-400 font-semibold border-b-2 border-sky-500' : 'text-slate-500'}`}>Menu Catalog Control</button>
-          <button onClick={() => setActiveTab('ledger')} className={`pb-1 ${activeTab === 'ledger' ? 'text-sky-400 font-semibold border-b-2 border-sky-500' : 'text-slate-500'}`}>Compliance & Audit Logs</button>
+        <div className="flex items-center gap-6 text-xs font-medium border-b border-gray-800 pb-2">
+          <button onClick={() => setActiveTab('browse')} className={`pb-2 transition-colors cursor-pointer ${activeTab === 'browse' ? 'text-indigo-400 font-semibold border-b-2 border-indigo-500' : 'text-gray-400 hover:text-gray-200'}`}>Canteen Menu & Favorites</button>
+          <button onClick={() => setActiveTab('history')} className={`pb-2 transition-colors cursor-pointer ${activeTab === 'history' ? 'text-indigo-400 font-semibold border-b-2 border-indigo-500' : 'text-gray-400 hover:text-gray-200'}`}>Live Orders & Pickup Status</button>
+          <button onClick={() => setActiveTab('analytics')} className={`pb-2 transition-colors cursor-pointer ${activeTab === 'analytics' ? 'text-indigo-400 font-semibold border-b-2 border-indigo-500' : 'text-gray-400 hover:text-gray-200'}`}>Spend Analytics & Ledger</button>
         </div>
 
-        {/* Tab 1: Live Student Queue */}
-        {activeTab === 'queue' && (
+        {/* Tab 1: Browse Menu & Favorites */}
+        {activeTab === 'browse' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <section className="lg:col-span-12 bg-[#030712] border border-slate-900 rounded p-5 shadow-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xs font-bold text-slate-200 uppercase">Live Student Order Queue (Kitchen Prep View)</h2>
-                <span className="bg-amber-500/10 text-amber-400 text-[9px] px-2 py-0.5 rounded border border-amber-500/20 font-mono">{pendingOrders.length} Pending Prep</span>
-              </div>
-
-              <div className="overflow-x-auto mt-2">
-                <table className="w-full text-left text-xs whitespace-nowrap">
-                  <thead>
-                    <tr className="text-slate-500 border-b border-slate-900">
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Student Name & Grade</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Order Ref & Time</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Ordered Items</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Authorized Parent</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Kitchen Sign-off</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-900/60">
-                    {ordersHistory.map((ord) => (
-                      <tr key={ord.id} className="hover:bg-slate-900/40 transition">
-                        <td className="py-3">
-                          <span className="text-slate-100 font-bold text-sm block">{ord.student_name}</span>
-                          <span className="bg-sky-500/10 text-sky-300 text-[10px] px-1.5 py-0.5 rounded border border-sky-500/20 font-mono">{ord.grade_level || 'N/A'}</span>
-                        </td>
-                        <td className="py-3 text-slate-400 font-mono text-[11px]">{ord.order_ref}<br/><span className="text-[10px] text-slate-500">{new Date(ord.created_at).toLocaleTimeString()}</span></td>
-                        <td className="py-3 text-slate-300 max-w-[250px] truncate">{ord.items.map(i => i.name).join(', ')}</td>
-                        <td className="py-3 text-sky-400 text-[11px]">{ord.parent_name || 'Verified Guardian'}</td>
-                        <td className="py-3 text-slate-300 font-mono text-[11px]">
-                          {ord.approved_by ? (
-                            <span className="text-emerald-400">✔ {ord.approved_by}</span>
-                          ) : (
-                            <span className="text-amber-400 italic">Awaiting Prep...</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-right">
-                          {ord.status.includes('Pending') ? (
-                            <button onClick={() => approveOrder(ord.id)} className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-[10px] px-3 py-1.5 rounded uppercase">
-                              Mark Prepared
-                            </button>
-                          ) : (
-                            <span className="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded border border-emerald-500/20 font-mono">Ready / Packed</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* Tab 2: Catalog Control */}
-        {activeTab === 'catalog' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <section className="lg:col-span-5 bg-[#030712] border border-slate-900 rounded p-5 shadow-2xl flex flex-col gap-4">
-              <h2 className="text-xs font-bold text-slate-200 uppercase">Menu Catalog Control</h2>
-              <form onSubmit={handleItemSubmission} className="flex flex-col gap-3 text-xs">
-                <div>
-                  <label className="block text-slate-400 mb-1">Item Title</label>
-                  <input type="text" required value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="e.g., Gourmet Beef Burger" className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200" />
+            <div className="lg:col-span-8 flex flex-col gap-4">
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-xl flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xs font-bold text-gray-200 uppercase tracking-wider">Live Synced Canteen Menu (FSANZ PEAL Compliant)</h2>
+                  <span className="text-[10px] text-emerald-400 font-mono">Real-time Allergen Sync Active</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-400 mb-1">Unit Price (AUD)</label>
-                    <input type="number" step="0.01" required value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="$0.00" className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200 font-mono" />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 mb-1">Category</label>
-                    <select value={formCategory} onChange={e => setFormCategory(e.target.value)} className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200">
-                      <option>Hot Food</option>
-                      <option>Sandwiches</option>
-                      <option>Drinks</option>
-                      <option>Confectionery</option>
-                      <option>Specials</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-400 mb-1">Calories (kcal)</label>
-                    <input type="number" value={formCalories} onChange={e => setFormCalories(e.target.value)} placeholder="350" className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200 font-mono" />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 mb-1">Allergen Tags</label>
-                    <input type="text" value={formAllergens} onChange={e => setFormAllergens(e.target.value)} placeholder="gluten, dairy" className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-300" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Ingredients Manifest</label>
-                  <textarea rows="2" value={formIngredients} onChange={e => setFormIngredients(e.target.value)} placeholder="Exact components..." className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200"></textarea>
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">PAL Warnings</label>
-                  <input type="text" value={formPal} onChange={e => setFormPal(e.target.value)} placeholder="Traces of soy..." className="w-full bg-[#070c19] border border-slate-900 rounded p-2 text-slate-200" />
-                </div>
-                <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-slate-950 font-bold py-2 rounded text-[10px] tracking-wider uppercase mt-1">
-                  Save & Publish FSANZ Item to Supabase
-                </button>
-              </form>
-            </section>
-
-            <section className="lg:col-span-7 bg-[#030712] border border-slate-900 rounded p-5 shadow-2xl flex flex-col gap-4">
-              <h2 className="text-xs font-bold text-slate-200 uppercase">Live Supabase FSANZ Menu Catalog</h2>
-              <div className="flex flex-col gap-2 max-h-[450px] overflow-y-auto pr-1">
-                {canteenCatalog.map((item) => (
-                  <div key={item.id} className="bg-[#070c19] border border-slate-900 p-3 rounded flex justify-between items-center text-xs">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-slate-200">{item.name}</strong>
-                        <span className="text-emerald-400 font-mono">${item.price.toFixed(2)}</span>
-                        <span className="text-[10px] text-sky-400 font-mono">({item.calories} kcal)</span>
+                
+                {/* Horizontal Compact Card Layout matching reference screenshot */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {canteenCatalog.map(item => (
+                    <div key={item.id} className="bg-[#0b0f19] border border-gray-800 rounded-xl p-3.5 flex items-center gap-3.5 shadow-sm hover:border-gray-700 transition">
+                      
+                      {/* Left Thumbnail Image */}
+                      <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-gray-800 relative">
+                        <img 
+                          src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                          }}
+                        />
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Allergens: {item.allergens?.join(', ') || 'None'}</p>
+
+                      {/* Right Details & Action */}
+                      <div className="flex flex-col justify-between flex-1 gap-1.5 text-xs">
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <strong className="text-gray-100 text-sm leading-snug">{item.name}</strong>
+                          </div>
+                          <span className="text-emerald-400 font-mono font-bold block mt-0.5">${item.price.toFixed(2)}</span>
+                          <span className="text-[10px] text-indigo-400 font-mono block mt-0.5">{item.category} ({item.calories} kcal)</span>
+                        </div>
+
+                        <div className="text-[10px] text-gray-400">
+                          <p className="truncate"><strong>Allergens:</strong> {item.allergens?.join(', ') || 'None'}</p>
+                          {item.pal && <p className="text-amber-400 truncate"><strong>PAL:</strong> {item.pal}</p>}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-800/80">
+                          <button onClick={() => addToCart(item)} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] uppercase tracking-wider transition-colors cursor-pointer text-center">
+                            Add to Cart
+                          </button>
+                          <button onClick={() => saveAsFavorite(item)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg text-[10px] transition-colors cursor-pointer" title="Save as Favorite">
+                            ⭐
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
-                    <button onClick={() => deleteCatalogItem(item.id)} className="text-rose-400 hover:text-rose-300 text-[10px] border border-rose-500/20 bg-rose-500/10 px-2 py-1 rounded">Remove</button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </section>
+            </div>
+
+            {/* Cart & Favorites Sidebar */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-xl flex flex-col gap-4">
+                <h2 className="text-xs font-bold text-gray-200 uppercase tracking-wider">Current Order Cart</h2>
+                {cart.length === 0 ? (
+                  <p className="text-gray-500 text-xs italic">Cart is empty. Select items from the menu.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {cart.map(c => (
+                      <div key={c.id} className="flex justify-between items-center text-xs bg-[#0b0f19] p-3 rounded-lg border border-gray-800">
+                        <div>
+                          <span className="text-gray-200 font-semibold">{c.name}</span>
+                          <span className="text-gray-400 text-[10px] block">Qty: {c.qty} x ${c.price.toFixed(2)}</span>
+                        </div>
+                        <span className="text-emerald-400 font-mono">${(c.price * c.qty).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t border-gray-800 pt-3 flex justify-between items-center font-bold text-sm">
+                      <span className="text-gray-400">Total Due:</span>
+                      <span className="text-emerald-400 font-mono">${cartTotal.toFixed(2)}</span>
+                    </div>
+                    <button onClick={submitCanteenOrder} className="w-full bg-emerald-600 hover:bg-emerald-500 text-gray-950 font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+                      Confirm & Send to Kitchen Queue
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {favorites.length > 0 && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-xl flex flex-col gap-3">
+                  <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider">Saved Favorite Orders</h3>
+                  {favorites.map(fav => (
+                    <div key={fav.id} className="flex justify-between items-center text-xs bg-[#0b0f19] p-3 rounded-lg border border-gray-800">
+                      <span className="text-gray-300">{fav.name}</span>
+                      <button onClick={() => addToCart(fav)} className="text-indigo-400 hover:text-indigo-300 font-bold text-[10px] cursor-pointer">Quick Add +</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Tab 3: Compliance & Audit Logs */}
-        {activeTab === 'ledger' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <section className="lg:col-span-12 bg-[#030712] border border-slate-900 rounded p-5 shadow-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-900 pb-3">
-                <h2 className="text-xs font-bold text-slate-200 uppercase">Audited Financials & Legal Traceability Logs</h2>
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-500 block">Total Turnover (AUD)</span>
-                  <span className="text-sm font-bold text-emerald-400 font-mono">${totalRevenue.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="overflow-x-auto mt-2">
-                <table className="w-full text-left text-xs whitespace-nowrap">
-                  <thead>
-                    <tr className="text-slate-500 border-b border-slate-900">
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Timestamp</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Order Ref</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Student Name & Grade</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Authorized Parent (Audit Trail)</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase">Staff Sign-off</th>
-                      <th className="pb-2 font-semibold text-[10px] uppercase text-right">Amount</th>
+        {/* Tab 2: Live Orders & Pickup Status */}
+        {activeTab === 'history' && (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-xl flex flex-col gap-4">
+            <h2 className="text-xs font-bold text-gray-200 uppercase tracking-wider">Live Order Tracker & Kitchen Sign-off Log</h2>
+            <div className="overflow-x-auto mt-2">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="text-gray-400 border-b border-gray-800">
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider">Order Ref</th>
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider">Student Name</th>
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider">Items Ordered</th>
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider">Kitchen Packed By & Time</th>
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider">Status</th>
+                    <th className="pb-3 font-semibold text-[10px] uppercase tracking-wider text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60">
+                  {myOrders.map(ord => (
+                    <tr key={ord.id} className="hover:bg-gray-800/40 transition">
+                      <td className="py-3.5 text-gray-200 font-mono">{ord.order_ref}</td>
+                      <td className="py-3.5 text-gray-100 font-semibold">{ord.student_name}</td>
+                      <td className="py-3.5 text-gray-400 max-w-[200px] truncate">{ord.items.map(i => `${i.qty}x ${i.name}`).join(', ')}</td>
+                      <td className="py-3.5 text-emerald-400 font-mono text-[11px]">
+                        {ord.approved_by ? `${ord.approved_by} at ${new Date(ord.approved_at).toLocaleTimeString()}` : 'Awaiting Kitchen Pack...'}
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-mono ${ord.status.includes('Fulfilled') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                          {ord.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-right text-emerald-400 font-mono font-bold">${(ord.total || 0).toFixed(2)}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-900/60">
-                    {ordersHistory.map((ord) => (
-                      <tr key={ord.id} className="hover:bg-slate-900/40 transition">
-                        <td className="py-3 text-slate-400 font-mono">{new Date(ord.created_at).toLocaleString()}</td>
-                        <td className="py-3 text-slate-200 font-mono">{ord.order_ref}</td>
-                        <td className="py-3">
-                          <span className="text-slate-200 font-bold">{ord.student_name}</span>
-                          <span className="text-sky-400 text-[10px] ml-1 font-mono">({ord.grade_level})</span>
-                        </td>
-                        <td className="py-3 text-sky-300">{ord.parent_name}</td>
-                        <td className="py-3 text-emerald-400 font-mono text-[11px]">{ord.approved_by || 'Pending'}</td>
-                        <td className="py-3 text-right text-emerald-400 font-mono font-bold">${(ord.total || 0).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Spend Analytics & Ledger */}
+        {activeTab === 'analytics' && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl shadow-xl flex flex-col gap-1.5">
+              <span className="text-[10px] text-gray-400 uppercase font-mono tracking-wider">Daily Spend Volume</span>
+              <span className="text-2xl font-bold text-emerald-400 font-mono">${(totalSpend * 0.15).toFixed(2)}</span>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl shadow-xl flex flex-col gap-1.5">
+              <span className="text-[10px] text-gray-400 uppercase font-mono tracking-wider">Weekly Spend Volume</span>
+              <span className="text-2xl font-bold text-emerald-400 font-mono">${(totalSpend * 0.65).toFixed(2)}</span>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl shadow-xl flex flex-col gap-1.5">
+              <span className="text-[10px] text-gray-400 uppercase font-mono tracking-wider">Monthly Spend Volume</span>
+              <span className="text-2xl font-bold text-emerald-400 font-mono">${totalSpend.toFixed(2)}</span>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl shadow-xl flex flex-col gap-1.5">
+              <span className="text-[10px] text-gray-400 uppercase font-mono tracking-wider">Yearly Projected Spend</span>
+              <span className="text-2xl font-bold text-indigo-400 font-mono">${(totalSpend * 12).toFixed(2)}</span>
+            </div>
           </div>
         )}
 

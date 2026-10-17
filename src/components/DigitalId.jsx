@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../../utils/supabaseClient'; // Adjust path to your Supabase client
-import GlobalHeader from '../../components/GlobalHeader'; // Adjust path to your GlobalHeader component
+import { supabase } from '../../utils/supabaseClient';
+import GlobalHeader from '../../components/GlobalHeader';
 import JsBarcode from 'jsbarcode';
 import html2canvas from 'html2canvas';
 
 export default function DigitalId() {
-  const { schoolSlug } = useParams(); // Extracts school slug for multi-tenancy RLS/RBAC scoping
+  const { schoolSlug } = useParams();
   const [students, setStudents] = useState([]);
   const [currentSelectedStudent, setCurrentSelectedStudent] = useState(null);
   const [schoolConfig, setSchoolConfig] = useState({
@@ -20,7 +20,6 @@ export default function DigitalId() {
   useEffect(() => {
     async function fetchSchoolAndStudents() {
       try {
-        // Fetch Tenant / School Info using slug
         const { data: schoolData, error: schoolError } = await supabase
           .from('schools')
           .select('*')
@@ -36,7 +35,6 @@ export default function DigitalId() {
           });
         }
 
-        // Fetch Students belonging to this school enforcing tenant RLS
         const { data: studentData, error: studentError } = await supabase
           .from('students')
           .select('*')
@@ -57,7 +55,6 @@ export default function DigitalId() {
         }
       } catch (err) {
         console.error("Error loading tenant credential data:", err.message);
-        // Fallback demo state if offline/unlinked for previewing
         const fallbackStudents = [
           {
             id: "STU-2026-8841",
@@ -107,7 +104,6 @@ export default function DigitalId() {
   const handleSchoolNameChange = async (e) => {
     const newName = e.target.value;
     setSchoolConfig(prev => ({ ...prev, schoolName: newName }));
-    // Persist to Supabase tenant configuration table here if required
   };
 
   const handleLogoUpload = (event) => {
@@ -178,16 +174,12 @@ export default function DigitalId() {
   return (
     <div className="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-cyan-500 selection:text-slate-950">
       
-      {/* Global Header Integration */}
       <GlobalHeader />
 
-      {/* Main Content Layout */}
       <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-        {/* Left Column: Directory & Administrative Controls (RBAC Admin Restricted) */}
         <section className="lg:col-span-5 space-y-6">
           
-          {/* School Logo & Branding Configuration Manager */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl">
             <h2 className="text-sm font-semibold tracking-wide text-cyan-400 uppercase mb-3">1. School Crest & Branding Manager</h2>
             <p className="text-xs text-slate-400 mb-4">Upload the official school crest image. Automatically renders across tenant passes.</p>
@@ -215,7 +207,6 @@ export default function DigitalId() {
             </div>
           </div>
 
-          {/* Student Mugshot / Media Ingestion Pipeline */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-sm font-semibold tracking-wide text-cyan-400 uppercase">2. Student Mugshot Ingestion</h2>
@@ -244,7 +235,6 @@ export default function DigitalId() {
             </div>
           </div>
 
-          {/* Student Directory List */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-sm font-semibold tracking-wide text-cyan-400 uppercase">3. Student Directory</h2>
@@ -282,7 +272,6 @@ export default function DigitalId() {
           </div>
         </section>
 
-        {/* Right Column: Live Virtual ID Pass Preview Workspace */}
         <section className="lg:col-span-7 flex flex-col items-center justify-start">
           <div className="w-full bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col items-center">
             <div className="w-full flex justify-between items-center mb-6">
@@ -290,14 +279,11 @@ export default function DigitalId() {
               <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg font-mono">RLS & RBAC Secure Tenant</span>
             </div>
 
-            {/* Landscape Credit Card Pass Pass Container */}
             {currentSelectedStudent && (
               <div id="captureCardElement" className="w-[440px] h-[278px] bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden relative flex flex-col justify-between p-4 text-slate-100 select-none">
                 
-                {/* Top Accent Bar */}
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-500 z-20"></div>
 
-                {/* Pass Header */}
                 <div className="relative z-10 flex justify-between items-center border-b border-slate-800/80 pb-2 pt-1">
                   <div className="flex items-center space-x-2.5">
                     <img src={schoolConfig.logoUrl} className="w-7 h-7 object-contain bg-slate-900 p-1 rounded-lg border border-slate-700" alt="Logo" />
@@ -309,7 +295,6 @@ export default function DigitalId() {
                   <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-mono font-medium">Active Token</span>
                 </div>
 
-                {/* Pass Body */}
                 <div className="relative z-10 flex items-center justify-between my-auto py-1">
                   <div className="relative flex-shrink-0">
                     <div className="w-20 h-24 rounded-xl bg-slate-900 border-2 border-slate-700 overflow-hidden shadow-md flex items-center justify-center">
@@ -339,7 +324,6 @@ export default function DigitalId() {
                   </div>
                 </div>
 
-                {/* Pass Footer */}
                 <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between">
                   <div className="bg-white px-2 py-1 rounded w-[190px] flex justify-center shadow-inner">
                     <svg id="passBarcode"></svg>
@@ -349,7 +333,6 @@ export default function DigitalId() {
               </div>
             )}
 
-            {/* Action Buttons */}
             <div className="w-full max-w-[440px] mt-4 flex gap-3">
               <button onClick={simulateSendToParent} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-lg shadow-cyan-900/35 transition-all flex items-center justify-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
@@ -361,7 +344,6 @@ export default function DigitalId() {
               </button>
             </div>
 
-            {/* Notification Toast */}
             {toastMessage && (
               <div className="mt-4 w-full max-w-[440px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-3 rounded-xl text-center font-medium animate-fadeIn">
                 {toastMessage}

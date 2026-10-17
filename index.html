@@ -5,11 +5,43 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SEEDORA – Portal</title>
+    <style>
+      /* Quick styling to make Google's widget blend into dark mode headers */
+      .goog-te-combo {
+        background-color: #0f1f38 !important;
+        color: #d0e0f0 !important;
+        border: 1px solid rgba(168, 192, 216, 0.3) !important;
+        padding: 5px 8px !important;
+        border-radius: 6px !important;
+        font-size: 0.8rem !important;
+        outline: none !important;
+        cursor: pointer;
+      }
+      .goog-logo-link, .goog-te-gadget span {
+        display: none !important;
+      }
+      .goog-te-gadget {
+        color: transparent !important;
+      }
+    </style>
   </head>
   <body>
-    <!-- The missing root container that mounts your whole React app -->
+    <!-- The root container that mounts your whole React app -->
     <div id="root"></div>
     
+    <!-- Google Translate Global Script Initializer -->
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({
+          pageLanguage: 'en',
+          includedLanguages: 'ru,en,zh,es,fr,de,ja,ar,pt,id',
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+          autoDisplay: false
+        }, 'google_translate_element');
+      }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <!-- Core client script compiler entry point -->
     <script type="module" src="/src/main.jsx"></script>
   </body>

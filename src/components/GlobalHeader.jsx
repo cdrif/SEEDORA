@@ -8,6 +8,11 @@ export default function GlobalHeader() {
   const navigate = useNavigate();
   const [schoolLogo, setSchoolLogo] = useState('');
   
+  // Student context states for the header display
+  const [studentName, setStudentName] = useState('ALEXANDER J. THOMPSON');
+  const [gradeLevel, setGradeLevel] = useState('GRADE 11');
+  const [teacherName, setTeacherName] = useState('Ms. Evelyn Davis');
+  
   // Language Selector State (persists across pages using localStorage)
   const [selectedLang, setSelectedLang] = useState(() => {
     return localStorage.getItem('seedora_lang') || 'en';
@@ -35,13 +40,49 @@ export default function GlobalHeader() {
     fetchSchoolLogo();
   }, [schoolSlug]);
 
-  // Handle language change (updates localStorage and syncs with Supabase profile)
+  // Initialize Google Translate automatic page-wide translator script
+  useEffect(() => {
+    if (!document.getElementById('google-translate-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-translate-script';
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      script.async = true;
+      document.body.appendChild(script);
+
+      window.googleTranslateElementInit = () => {
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'ru,en,zh,es,fr,de,ja,ar,pt,id',
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false
+          },
+          'google_translate_element'
+        );
+      };
+    } else if (window.google && window.google.translate) {
+      try {
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'ru,en,zh,es,fr,de,ja,ar,pt,id',
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false
+          },
+          'google_translate_element'
+        );
+      } catch (e) {
+        // Element may already be initialized
+      }
+    }
+  }, []);
+
+  // Handle language change (updates localStorage, syncs with Supabase profile, and triggers event)
   const handleLanguageChange = async (e) => {
     const newLang = e.target.value;
     setSelectedLang(newLang);
-    localStorage.setItem('seedora_lang', newLang);
+    localStorage.getItem('seedora_lang', newLang);
     
-    // Save preference to Supabase if user is logged in
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -54,7 +95,6 @@ export default function GlobalHeader() {
       console.error('Error saving language preference to database:', err.message);
     }
     
-    // Trigger window event so active panels can update immediately
     window.dispatchEvent(new Event('languageChange'));
   };
 
@@ -64,7 +104,7 @@ export default function GlobalHeader() {
 
   return (
     <header className="w-full bg-[#0b0f19] border-b border-gray-800/60 px-6 py-4 flex items-center justify-between text-white">
-      {/* Left Section: Dynamic Logo, School Slug & Sports Link */}
+      {/* Left Group: Logo, School Slug, and Tab Name (Sports Days) */}
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-full border border-gray-600 flex items-center justify-center bg-gray-900 shadow-inner overflow-hidden flex-shrink-0">
@@ -79,13 +119,11 @@ export default function GlobalHeader() {
             )}
           </div>
           
-          {/* Dynamic School Slug from URL */}
           <span className="text-sm font-semibold tracking-wider text-gray-300 uppercase">
             {schoolSlug || 'school'}
           </span>
         </div>
 
-        {/* Quick Link to Sports Pages */}
         {schoolSlug && (
           <nav className="flex items-center space-x-4 border-l border-gray-800 pl-6 text-sm">
             <Link 
@@ -98,31 +136,22 @@ export default function GlobalHeader() {
         )}
       </div>
 
-      {/* Right Section: Top 15 Language Selector & Log Out Button */}
-      <div className="flex items-center space-x-4">
-        {/* Top 15 Global Languages Dropdown */}
-        <select
-          value={selectedLang}
-          onChange={handleLanguageChange}
-          aria-label="Select language"
-          className="bg-gray-900 border border-gray-700 text-xs font-medium rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
-        >
-          <option value="en">English</option>
-          <option value="zh">中文 (Mandarin Chinese)</option>
-          <option value="hi">हिन्दी (Hindi)</option>
-          <option value="es">Español (Spanish)</option>
-          <option value="fr">Français (French)</option>
-          <option value="ar">العربية (Arabic)</option>
-          <option value="bn">বাংলা (Bengali)</option>
-          <option value="pt">Português (Portuguese)</option>
-          <option value="ru">Русский (Russian)</option>
-          <option value="ur">اردو (Urdu)</option>
-          <option value="id">Bahasa Indonesia (Indonesian)</option>
-          <option value="de">Deutsch (German)</option>
-          <option value="ja">日本語 (Japanese)</option>
-          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
-          <option value="jv">Basa Jawa (Javanese)</option>
-        </select>
+      {/* Right-Side Group in Requested Order: Student Context -> Google Translate -> Log Out */}
+      <div className="flex items-center space-x-6">
+        {/* Student Name with Grade & Teacher underneath */}
+        <div className="flex flex-col items-start text-left border-l border-gray-800 pl-6">
+          <span className="text-sm font-bold tracking-wider text-white uppercase">
+            {studentName}
+          </span>
+          <div className="flex items-center space-x-2 text-xs text-gray-400 mt-0.5">
+            <span>{gradeLevel}</span>
+            <span>•</span>
+            <span>Teacher: {teacherName}</span>
+          </div>
+        </div>
+
+        {/* Google Translate Target Container */}
+        <div id="google_translate_element" className="text-xs"></div>
 
         {/* Log Out Button */}
         <button
