@@ -1,8 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Fully restored Super Admin Header
-function SuperAdminHeader({ activeTab, setActiveTab }) {
+const defaultFeatures = { 
+  // Parents Portal Features
+  parentOverview: true,
+  parentDailySchedule: true,
+  parentCanteen: true,
+  parentDigitalId: true,
+  parentEvents: true,
+  parentHomework: true,
+  parentHub: true,
+  parentSports: true,
+  parentBusPlanner: true,
+  parentReportCards: true,
+  parentLostAndFound: true,
+  parentBehavior: true,
+
+  // Teachers Portal Features
+  teacherOverview: true,
+  teacherDailySchedule: true,
+  teacherEvents: true,
+  teacherHomework: true,
+  teacherHub: true,
+  teacherSports: true,
+  teacherReportCards: true,
+  teacherLostAndFound: true,
+  teacherBehavior: true,
+
+  // Admin & Core Platform Features
+  adminOverview: true,
+  adminAwards: true,
+  adminEvents: true,
+  adminReportCards: true,
+  adminAttendance: true,
+  adminCanteen: true,
+  adminFinance: true,
+  adminLostAndFound: true,
+  adminSports: true,
+  adminStudentLink: true,
+  adminSportsRecords: true,
+  adminEmergencyAlerts: true,
+  adminDigitalIds: true,
+  adminBusPlanner: true,
+  adminLocalization: true,
+  adminEnrollments: true,
+  adminFacilities: true
+};
+
+function SuperAdminNavbar({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'schools', label: 'Schools' },
     { id: 'invites', label: 'Principal Invites' },
@@ -45,7 +90,7 @@ function SuperAdminHeader({ activeTab, setActiveTab }) {
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('schools');
-  const [currentEmployee, setCurrentEmployee] = useState('Admin User');
+  const [currentEmployee] = useState('Admin User');
 
   const [schools, setSchools] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -54,8 +99,12 @@ export default function SuperAdminDashboard() {
   
   const [schoolSearch, setSchoolSearch] = useState('');
   const [schoolStatusFilter, setSchoolStatusFilter] = useState('All');
-  const [selectedMatrixSchool, setSelectedMatrixSchool] = useState('');
-  const [featureMatrix, setFeatureMatrix] = useState({});
+  
+  // Matrix specific states
+  const [selectedMatrixSchoolId, setSelectedMatrixSchoolId] = useState('');
+  const [featuresData, setFeaturesData] = useState({});
+  const [matrixEdits, setMatrixEdits] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Invite Form State
   const [invitePrincipalName, setInvitePrincipalName] = useState('');
@@ -68,39 +117,43 @@ export default function SuperAdminDashboard() {
   const [newTodoType, setNewTodoType] = useState('Task');
 
   useEffect(() => {
-    fetchSchools();
-    fetchAuditLogs();
-    fetchBugReports();
-    fetchTodos();
+    fetchAllData();
   }, []);
 
-  const fetchSchools = async () => {
-    const { data, error } = await supabase.from('schools').select('*');
-    if (!error && data) {
-      setSchools(data);
-      if (data.length > 0 && !selectedMatrixSchool) setSelectedMatrixSchool(data[0].name);
+  const fetchAllData = async () => {
+    const [schoolsRes, logsRes, bugsRes, todosRes, featuresRes] = await Promise.all([
+      supabase.from('schools').select('*'),
+      supabase.from('audit_logs').select('*').order('created_at', { ascending: false }),
+      supabase.from('bug_reports').select('*'),
+      supabase.from('employee_todos').select('*'),
+      supabase.from('school_features').select('*')
+    ]);
+
+    if (schoolsRes.data) {
+      setSchools(schoolsRes.data);
+      if (schoolsRes.data.length > 0 && !selectedMatrixSchoolId) {
+        setSelectedMatrixSchoolId(schoolsRes.data[0].id);
+      }
     }
-  };
+    if (logsRes.data) setAuditLogs(logsRes.data);
+    if (bugsRes.data) setBugReports(bugsRes.data);
+    if (todosRes.data) setTodos(todosRes.data);
 
-  const fetchAuditLogs = async () => {
-    const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
-    if (!error && data) setAuditLogs(data);
-  };
-
-  const fetchBugReports = async () => {
-    const { data, error } = await supabase.from('bug_reports').select('*');
-    if (!error && data) setBugReports(data);
-  };
-
-  const fetchTodos = async () => {
-    const { data, error } = await supabase.from('employee_todos').select('*');
-    if (!error && data) setTodos(data);
+    if (featuresRes.data) {
+      const featureMap = {};
+      featuresRes.data.forEach(row => {
+        featureMap[row.school_id] = { ...defaultFeatures, ...(row.features || {}) };
+      });
+      setFeaturesData(featureMap);
+      setMatrixEdits(featureMap);
+    }
   };
 
   const logAction = async (actionDescription) => {
     const newLog = { employee: currentEmployee, action: actionDescription, timestamp: new Date().toISOString() };
     await supabase.from('audit_logs').insert([newLog]);
-    fetchAuditLogs();
+    const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
+    if (data) setAuditLogs(data);
   };
 
   const handleSendInvite = async (e) => {
@@ -114,40 +167,40 @@ export default function SuperAdminDashboard() {
       ? inviteSchoolSlug 
       : inviteSchoolName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
 
-    // 1. Register the school in the database
-    const { error: schoolError } = await supabase.from('schools').insert([{
+    const { data: schoolData, error: schoolError } = await supabase.from('schools').insert([{
       name: inviteSchoolName.trim(),
       slug: finalSlug.trim(),
       status: 'Contract',
       students: 0,
       renewal_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    }]);
+    }]).select('id').single();
 
     if (schoolError) {
       alert('Error registering school: ' + schoolError.message);
       return;
     }
 
-    // Save current admin session so signUp doesn't overwrite it
+    if (schoolData?.id) {
+      await supabase.from('school_features').upsert({
+        school_id: schoolData.id,
+        features: defaultFeatures,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'school_id' });
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const currentSession = sessionData?.session;
 
-    // 2. Provision Auth Account via SignUp
     const tempPassword = `Temp-${Math.random().toString(36).slice(-8)}!`;
-    const { error: signUpError } = await supabase.auth.signUp({
+    await supabase.auth.signUp({
       email: inviteContactEmail.trim(),
       password: tempPassword,
       options: {
         emailRedirectTo: `${window.location.origin}/${finalSlug}/admin`,
-        data: {
-          full_name: invitePrincipalName,
-          role: 'principal',
-          school_slug: finalSlug
-        }
+        data: { full_name: invitePrincipalName, role: 'principal', school_slug: finalSlug }
       }
     });
 
-    // Restore Super Admin session immediately so dashboard remains authenticated
     if (currentSession) {
       await supabase.auth.setSession({
         access_token: currentSession.access_token,
@@ -155,28 +208,18 @@ export default function SuperAdminDashboard() {
       });
     }
 
-    if (signUpError) {
-      console.warn("Auth signup note:", signUpError.message);
-    }
-
-    // 3. Trigger password setup email
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(inviteContactEmail.trim(), {
+    await supabase.auth.resetPasswordForEmail(inviteContactEmail.trim(), {
       redirectTo: `${window.location.origin}/${finalSlug}/admin`,
     });
 
-    if (resetError) {
-      alert('School registered, but password reset email failed: ' + resetError.message);
-    } else {
-      alert(`Successfully registered ${inviteSchoolName}, created Auth user, and sent invitation email to ${inviteContactEmail}!`);
-    }
-
     await logAction(`Invited principal ${invitePrincipalName} for school ${inviteSchoolName} (Slug: ${finalSlug})`);
     
+    alert(`Successfully registered ${inviteSchoolName} and sent invitation email!`);
     setInvitePrincipalName('');
     setInviteSchoolName('');
     setInviteSchoolSlug('');
     setInviteContactEmail('');
-    fetchSchools();
+    fetchAllData();
   };
 
   const handleDeleteSchool = async (schoolId, schoolName) => {
@@ -186,9 +229,8 @@ export default function SuperAdminDashboard() {
     if (error) {
       alert('Error deleting school: ' + error.message);
     } else {
-      alert(`Successfully removed ${schoolName}. You can now re-add it.`);
       await logAction(`Deleted school: ${schoolName}`);
-      fetchSchools();
+      fetchAllData();
     }
   };
 
@@ -200,11 +242,54 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const handleFeatureToggle = async (featureKey) => {
-    const currentFeatures = featureMatrix[selectedMatrixSchool] || { analytics: true, aiTutor: false, sportsPortal: true, parentGateway: true };
-    const updatedStatus = !currentFeatures[featureKey];
-    setFeatureMatrix({ ...featureMatrix, [selectedMatrixSchool]: { ...currentFeatures, [featureKey]: updatedStatus } });
-    logAction(`Toggled feature '${featureKey}' to ${updatedStatus ? 'ON' : 'OFF'} for ${selectedMatrixSchool}`);
+  // Matrix Feature Local Toggle
+  const handleToggleFeatureLocal = (featureKey) => {
+    if (!selectedMatrixSchoolId) return;
+
+    const currentEdits = {
+      ...defaultFeatures,
+      ...(featuresData[selectedMatrixSchoolId] || {}),
+      ...(matrixEdits[selectedMatrixSchoolId] || {})
+    };
+
+    const updatedFeatures = { 
+      ...currentEdits, 
+      [featureKey]: !currentEdits[featureKey] 
+    };
+
+    setMatrixEdits(prev => ({
+      ...prev,
+      [selectedMatrixSchoolId]: updatedFeatures
+    }));
+    setSuccessMessage('');
+  };
+
+  // Publish Matrix to Supabase
+  const handlePublishMatrix = async () => {
+    if (!selectedMatrixSchoolId) return;
+
+    const schoolEdits = {
+      ...defaultFeatures,
+      ...(featuresData[selectedMatrixSchoolId] || {}),
+      ...(matrixEdits[selectedMatrixSchoolId] || {})
+    };
+    const activeSchool = schools.find(s => s.id === selectedMatrixSchoolId);
+
+    const { error } = await supabase
+      .from('school_features')
+      .upsert({ 
+        school_id: selectedMatrixSchoolId, 
+        features: schoolEdits, 
+        updated_at: new Date().toISOString() 
+      }, { onConflict: 'school_id' });
+
+    if (error) {
+      alert("Error publishing feature matrix: " + error.message);
+    } else {
+      setFeaturesData(prev => ({ ...prev, [selectedMatrixSchoolId]: schoolEdits }));
+      setSuccessMessage(`Successfully published feature matrix for ${activeSchool?.name || 'School'}!`);
+      await logAction(`Published updated feature matrix for school: ${activeSchool?.name}`);
+    }
   };
 
   const updateBugStatus = async (bugId, newStatus) => {
@@ -235,9 +320,16 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const activeMatrixSchoolObj = schools.find(s => s.id === selectedMatrixSchoolId);
+  const currentMatrixFeatures = {
+    ...defaultFeatures,
+    ...(featuresData[selectedMatrixSchoolId] || {}),
+    ...(matrixEdits[selectedMatrixSchoolId] || {})
+  };
+
   return (
     <div className="min-h-screen bg-[#07090e] text-gray-100 flex flex-col font-sans">
-      <SuperAdminHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SuperAdminNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
         
@@ -413,9 +505,9 @@ export default function SuperAdminDashboard() {
                 {schools.map(s => (
                   <button
                     key={s.id}
-                    onClick={() => setSelectedMatrixSchool(s.name)}
+                    onClick={() => setSelectedMatrixSchoolId(s.id)}
                     className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                      selectedMatrixSchool === s.name ? 'bg-indigo-600/20 border border-indigo-500/50 text-indigo-300' : 'bg-gray-900/60 hover:bg-gray-900 text-gray-300 border border-gray-800'
+                      selectedMatrixSchoolId === s.id ? 'bg-indigo-600/20 border border-indigo-500/50 text-indigo-300' : 'bg-gray-900/60 hover:bg-gray-900 text-gray-300 border border-gray-800'
                     }`}
                   >
                     {s.name}
@@ -425,27 +517,54 @@ export default function SuperAdminDashboard() {
             </div>
 
             <div className="md:col-span-2 bg-[#0b0f19] border border-gray-800 rounded-xl p-6 space-y-6 shadow-xl">
-              <div>
-                <h3 className="text-lg font-bold text-white">Feature Access Matrix</h3>
-                <p className="text-xs text-gray-400 mt-1">Configure module toggles for <span className="text-indigo-400 font-medium">{selectedMatrixSchool || 'Selected School'}</span>.</p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Feature Access Matrix</h3>
+                  <p className="text-xs text-gray-400 mt-1">Configure module toggles for <span className="text-indigo-400 font-medium">{activeMatrixSchoolObj?.name || 'Selected School'}</span>.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePublishMatrix}
+                  className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer shadow-lg shadow-emerald-900/20"
+                >
+                  Publish Changes
+                </button>
               </div>
 
-              <div className="space-y-4 divide-y divide-gray-800/80">
-                {Object.entries(featureMatrix[selectedMatrixSchool] || { analytics: true, aiTutor: false, sportsPortal: true, parentGateway: true }).map(([feature, isEnabled]) => (
-                  <div key={feature} className="pt-4 first:pt-0 flex items-center justify-between">
+              {successMessage && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-lg text-xs">
+                  {successMessage}
+                </div>
+              )}
+
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                {Object.entries(currentMatrixFeatures).map(([featureKey, isEnabled]) => (
+                  <div 
+                    key={featureKey} 
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors"
+                  >
                     <div>
-                      <span className="text-sm font-semibold capitalize text-gray-200 block">{feature.replace(/([A-Z])/g, ' $1')}</span>
-                      <span className="text-xs text-gray-400">Toggles visibility and availability on student/staff nav bar.</span>
+                      <span className="text-sm font-medium text-white capitalize">
+                        {featureKey.replace(/([A-Z])/g, ' $1')}
+                      </span>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Toggles visibility and availability on student/staff nav bar.
+                      </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={() => handleFeatureToggle(feature)}
-                        className="sr-only peer"
+                    
+                    <button 
+                      type="button"
+                      onClick={() => handleToggleFeatureLocal(featureKey)} 
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                        isEnabled ? 'bg-indigo-600' : 'bg-gray-800'
+                      }`}
+                    >
+                      <span 
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          isEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`} 
                       />
-                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
+                    </button>
                   </div>
                 ))}
               </div>
