@@ -90,22 +90,26 @@ export default function Login() {
           return;
         }
 
-        // 1. Try checking school_members first
-        const memberResult = await supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle();
-
-        if (memberResult.data) {
-          const member = memberResult.data;
-          const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
-          const slug = schoolData?.slug || 'default-school';
-          const userRole = member.role;
-          window.location.replace(`/${slug}/${userRole}`);
-          return;
+        // 1. Try checking school_members safely (won't crash out if table query errors)
+        try {
+          const memberResult = await supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle();
+          if (memberResult && memberResult.data) {
+            const member = memberResult.data;
+            const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
+            const slug = schoolData?.slug || 'default-school';
+            const userRole = member.role;
+            window.location.replace(`/${slug}/${userRole}`);
+            return;
+          }
+        } catch (memErr) {
+          console.log("school_members check skipped/errored, checking profiles...", memErr);
         }
 
-        // 2. Fallback: Check profiles table directly without joining schools table
+        // 2. Fallback: Check profiles table directly
         const profileResult = await supabase.from('profiles').select('role, school_slug').eq('id', userId).maybeSingle();
+        console.log("Profile query result:", profileResult);
 
-        if (profileResult.data) {
+        if (profileResult && profileResult.data) {
           const profile = profileResult.data;
           const slug = profile.school_slug || 'default-school';
           const userRole = profile.role || 'admin';
