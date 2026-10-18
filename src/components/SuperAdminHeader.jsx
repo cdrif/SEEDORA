@@ -537,36 +537,78 @@ export default function SuperAdminDashboard() {
                 </div>
               )}
 
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                {Object.entries(currentMatrixFeatures).map(([featureKey, isEnabled]) => (
-                  <div 
-                    key={featureKey} 
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors"
-                  >
-                    <div>
-                      <span className="text-sm font-medium text-white capitalize">
-                        {featureKey.replace(/([A-Z])/g, ' $1')}
-                      </span>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        Toggles visibility and availability on student/staff nav bar.
-                      </p>
-                    </div>
-                    
-                    <button 
-                      type="button"
-                      onClick={() => handleToggleFeatureLocal(featureKey)} 
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                        isEnabled ? 'bg-indigo-600' : 'bg-gray-800'
-                      }`}
-                    >
-                      <span 
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          isEnabled ? 'translate-x-6' : 'translate-x-1'
-                        }`} 
-                      />
-                    </button>
+              <div className="space-y-6 max-h-[550px] overflow-y-auto pr-2">
+                {/* Parents Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Parents Portal Features</h4>
+                  <div className="space-y-3">
+                    {Object.entries(currentMatrixFeatures)
+                      .filter(([key]) => key.startsWith('parent'))
+                      .map(([featureKey, isEnabled]) => (
+                        <div key={featureKey} className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors">
+                          <div>
+                            <span className="text-sm font-medium text-white capitalize">{featureKey.replace(/^parent/, '').replace(/([A-Z])/g, ' $1')}</span>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Toggles visibility and availability on parent portal.</p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleToggleFeatureLocal(featureKey)} 
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${isEnabled ? 'bg-indigo-600' : 'bg-gray-800'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Teachers Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 mt-6">Teachers Portal Features</h4>
+                  <div className="space-y-3">
+                    {Object.entries(currentMatrixFeatures)
+                      .filter(([key]) => key.startsWith('teacher'))
+                      .map(([featureKey, isEnabled]) => (
+                        <div key={featureKey} className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors">
+                          <div>
+                            <span className="text-sm font-medium text-white capitalize">{featureKey.replace(/^teacher/, '').replace(/([A-Z])/g, ' $1')}</span>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Toggles visibility and availability on teacher portal.</p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleToggleFeatureLocal(featureKey)} 
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${isEnabled ? 'bg-indigo-600' : 'bg-gray-800'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Admin & Core Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 mt-6">Admin & Core Platform Features</h4>
+                  <div className="space-y-3">
+                    {Object.entries(currentMatrixFeatures)
+                      .filter(([key]) => key.startsWith('admin'))
+                      .map(([featureKey, isEnabled]) => (
+                        <div key={featureKey} className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors">
+                          <div>
+                            <span className="text-sm font-medium text-white capitalize">{featureKey.replace(/^admin/, '').replace(/([A-Z])/g, ' $1')}</span>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Toggles visibility and availability on admin console.</p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleToggleFeatureLocal(featureKey)} 
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${isEnabled ? 'bg-indigo-600' : 'bg-gray-800'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
