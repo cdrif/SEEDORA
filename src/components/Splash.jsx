@@ -99,18 +99,13 @@ export default function Login() {
         
         const queriesCall = Promise.all([
           supabase.from('platform_admins').select('*').eq('user_id', userId).maybeSingle(),
-          supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle()
+          supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle(),
+          supabase.from('profiles').select('role, school_slug').eq('id', userId).maybeSingle()
         ]);
 
-        const [adminResult, memberResult] = await Promise.race([queriesCall, timeoutPromise]);
+        const [adminResult, memberResult, profileResult] = await Promise.race([queriesCall, timeoutPromise]);
         console.log(`Parallel Database Queries took: ${(performance.now() - t1).toFixed(2)}ms`);
         console.timeEnd('Supabase Auth Total');
-
-        console.log('5. Admin query result:', { adminData: adminResult.data, adminError: adminResult.error });
-
-        if (adminResult.error) {
-          console.error('Admin query error details:', adminResult.error);
-        }
 
         if (adminResult.data) {
           console.log('6. User is a platform admin! Navigating to superadmin dashboard...');
@@ -118,19 +113,26 @@ export default function Login() {
           return;
         }
 
-        console.log('8. Not a platform admin, checking school members result...');
+        // Check school_members (for parents/teachers)
         const member = memberResult.data;
-        const memberError = memberResult.error;
-
-        if (memberError || !member) {
-          throw new Error('No school profile found for this user.');
+        if (member) {
+          const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
+          const slug = schoolData?.slug || 'default-school';
+          const userRole = member.role;
+          window.location.href = `/${slug}/${userRole}`;
+          return;
         }
 
-        const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
-        const slug = schoolData?.slug || 'default-school';
-        const userRole = member.role;
+        // Check profiles (for principals/admins)
+        const profile = profileResult.data;
+        if (profile) {
+          const slug = profile.school_slug || 'aspley-state-high-school';
+          const userRole = profile.role || 'admin';
+          window.location.href = `/${slug}/${userRole}`;
+          return;
+        }
 
-        window.location.href = `/${slug}/${userRole}`;
+        throw new Error('No school profile found for this user.');
       }
 
     } catch (err) {
