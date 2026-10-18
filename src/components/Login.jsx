@@ -90,7 +90,7 @@ export default function Login() {
           return;
         }
 
-        // 1. Try checking school_members first (existing logic)
+        // 1. Try checking school_members first
         const memberResult = await supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle();
 
         if (memberResult.data) {
@@ -102,7 +102,7 @@ export default function Login() {
           return;
         }
 
-        // 2. Fallback: Check profiles table (for principals / admins linked via profiles table)
+        // 2. Fallback: Check profiles table
         const profileResult = await supabase.from('profiles').select('role, school_slug, schools(slug)').eq('id', userId).maybeSingle();
 
         if (profileResult.data) {
@@ -114,7 +114,6 @@ export default function Login() {
           return;
         }
 
-        // If neither table has a record, throw the error
         throw new Error('No school profile found for this user and you are not a platform admin.');
       }
 
