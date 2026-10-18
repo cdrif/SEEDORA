@@ -90,20 +90,32 @@ export default function Login() {
           return;
         }
 
+        // 1. Try checking school_members first (existing logic)
         const memberResult = await supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle();
 
-        const member = memberResult.data;
-        const memberError = memberResult.error;
-
-        if (memberError || !member) {
-          throw new Error('No school profile found for this user and you are not a platform admin.');
+        if (memberResult.data) {
+          const member = memberResult.data;
+          const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
+          const slug = schoolData?.slug || 'default-school';
+          const userRole = member.role;
+          window.location.replace(`/${slug}/${userRole}`);
+          return;
         }
 
-        const schoolData = Array.isArray(member.schools) ? member.schools[0] : member.schools;
-        const slug = schoolData?.slug || 'default-school';
-        const userRole = member.role;
+        // 2. Fallback: Check profiles table (for principals / admins linked via profiles table)
+        const profileResult = await supabase.from('profiles').select('role, school_slug, schools(slug)').eq('id', userId).maybeSingle();
 
-        window.location.replace(`/${slug}/${userRole}`);
+        if (profileResult.data) {
+          const profile = profileResult.data;
+          const schoolData = Array.isArray(profile.schools) ? profile.schools[0] : profile.schools;
+          const slug = profile.school_slug || schoolData?.slug || 'default-school';
+          const userRole = profile.role || 'admin';
+          window.location.replace(`/${slug}/${userRole}`);
+          return;
+        }
+
+        // If neither table has a record, throw the error
+        throw new Error('No school profile found for this user and you are not a platform admin.');
       }
 
     } catch (err) {
