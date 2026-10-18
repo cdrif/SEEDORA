@@ -98,13 +98,13 @@ export default function SuperAdminDashboard() {
       setBugs(bData);
       setTodos(tData);
 
-      // Map features by school_id
+      // Map features by school_id, safely merging with defaults
       const featureMap = {};
       fData.forEach(row => {
         featureMap[row.school_id] = { ...defaultFeatures, ...(row.features || {}) };
       });
       setFeaturesData(featureMap);
-      setMatrixEdits(featureMap); // Initialize edits state
+      setMatrixEdits(featureMap);
 
       if (sData.length > 0 && !selectedSchoolId) {
         setSelectedSchoolId(sData[0].id);
@@ -145,7 +145,12 @@ export default function SuperAdminDashboard() {
   const handleToggleFeatureLocal = (featureKey) => {
     if (!selectedSchoolId) return;
 
-    const currentEdits = matrixEdits[selectedSchoolId] || featuresData[selectedSchoolId] || defaultFeatures;
+    const currentEdits = {
+      ...defaultFeatures,
+      ...(featuresData[selectedSchoolId] || {}),
+      ...(matrixEdits[selectedSchoolId] || {})
+    };
+
     const updatedFeatures = { 
       ...currentEdits, 
       [featureKey]: !currentEdits[featureKey] 
@@ -161,51 +166,89 @@ export default function SuperAdminDashboard() {
   const handlePublishMatrix = async () => {
     if (!selectedSchoolId) return;
 
-    const schoolEdits = matrixEdits[selectedSchoolId] || defaultFeatures;
+    const schoolEdits = {
+      ...defaultFeatures,
+      ...(featuresData[selectedSchoolId] || {}),
+      ...(matrixEdits[selectedSchoolId] || {})
+    };
     const activeSchool = schools.find(s => s.id === selectedSchoolId);
 
-    // Upsert to Supabase
     const { error } = await supabase
       .from('school_features')
       .upsert({ 
         school_id: selectedSchoolId, 
         features: schoolEdits, 
         updated_at: new Date().toISOString() 
-      });
+      }, { onConflict: 'school_id' });
 
     if (error) {
       setErrorMessage("Error publishing feature matrix: " + error.message);
     } else {
       setFeaturesData(prev => ({ ...prev, [selectedSchoolId]: schoolEdits }));
-      setSuccessMessage(`Successfully published feature matrix for ${activeSchool?.name || 'School'}! Portal slug updated.`);
+      setSuccessMessage(`Successfully published feature matrix for ${activeSchool?.name || 'School'}!`);
       await recordAudit(`Published updated feature matrix for school: ${activeSchool?.name}`);
     }
   };
 
+  // Auto-generate URL slug when school name changes if slug is empty or matches previous auto-slug
+  const handleSchoolNameChange = (e) => {
+    const val = e.target.value;
+    const generatedSlug = val.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+    setForm(prev => ({
+      ...prev,
+      school: val,
+      slug: generatedSlug
+    }));
+  };
+
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (Object.values(form).some(val => !val.trim())) {
-      alert('Please fill out all fields.');
+    if (!form.principal.trim() || !form.school.trim() || !form.email.trim()) {
+      alert('Please fill out all required fields.');
       return;
     }
 
-    const { error: insertError } = await supabase.from('schools').insert([{ 
-      name: form.school, 
-      status: 'Contract', 
-      students: 0, 
-      renewal_date: new Date(Date.now() + 31536000000).toISOString().slice(0, 10) 
-    }]);
+    const finalSlug = form.slug && form.slug.trim() !== '' 
+      ? form.slug 
+      : form.school.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+
+    // 1. Insert school with guaranteed non-null slug and status
+    const { data: schoolData, error: insertError } = await supabase
+      .from('schools')
+      .insert([{ 
+        name: form.school.trim(),
+        slug: finalSlug.trim(),
+        status: 'Contract'
+      }])
+      .select('id, slug')
+      .single();
 
     if (insertError) {
-      alert(insertError.message);
+      alert("Database Error: " + insertError.message);
       return;
     }
 
-    await supabase.auth.resetPasswordForEmail(form.email, { 
-      redirectTo: `${window.location.origin}/${form.slug}/admin` 
+    // 2. Initialize default features for this newly created school in Supabase
+    if (schoolData?.id) {
+      await supabase.from('school_features').upsert({
+        school_id: schoolData.id,
+        features: defaultFeatures,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'school_id' });
+    }
+
+    // 3. Send password reset / invite email to principal
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { 
+      redirectTo: `${window.location.origin}/${finalSlug}/admin` 
     });
 
+    if (authError) {
+      alert("Auth Invite Error: " + authError.message);
+      return;
+    }
+
     await recordAudit(`Invited principal ${form.principal} for school ${form.school}`);
+    alert('School registered and invite sent successfully!');
     setForm({ principal: '', school: '', slug: '', email: '' });
     loadDashboardData();
   };
@@ -239,7 +282,13 @@ export default function SuperAdminDashboard() {
   );
 
   const activeSchoolObj = schools.find(s => s.id === selectedSchoolId);
-  const currentMatrix = matrixEdits[selectedSchoolId] || defaultFeatures;
+  
+  // Fully merged current matrix ensuring all default keys plus database/local edits are rendered
+  const currentMatrix = {
+    ...defaultFeatures,
+    ...(featuresData[selectedSchoolId] || {}),
+    ...(matrixEdits[selectedSchoolId] || {})
+  };
 
   return (
     <div className="min-h-screen bg-[#07090e] text-gray-100 font-sans flex flex-col">
@@ -284,7 +333,7 @@ export default function SuperAdminDashboard() {
                 visibleSchools.map(s => (
                   <tr key={s.id} className="hover:bg-gray-900/40">
                     <td className="p-4 font-medium text-white">{s.name}</td>
-                    <td className="p-4">{s.status}</td>
+                    <td className="p-4">{s.status || 'Active'}</td>
                     <td className="p-4">{s.students || 0}</td>
                     <td className="p-4">{s.renewal_date || 'N/A'}</td>
                     <td className="p-4 text-right">
@@ -301,25 +350,25 @@ export default function SuperAdminDashboard() {
 
         {/* TAB 2: INVITES */}
         {tab === 'invites' && (
-          <Card title="Invite Principal">
+          <Card title="Invite School Principal & Register School">
             <form onSubmit={handleInvite} className="space-y-4 max-w-md">
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Principal Name</label>
-                <input required value={form.principal} onChange={e => setForm({ ...form, principal: e.target.value })} className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
+                <input required value={form.principal} onChange={e => setForm({ ...form, principal: e.target.value })} placeholder="Dr. Jane Doe" className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">School Name</label>
-                <input required value={form.school} onChange={e => setForm({ ...form, school: e.target.value })} className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
+                <input required value={form.school} onChange={handleSchoolNameChange} placeholder="Oakridge High" className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">URL Slug</label>
-                <input required value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white font-mono" />
+                <input required value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} placeholder="oakridge-high" className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white font-mono" />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Email</label>
-                <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
+                <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="principal@oakridge.edu" className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-white" />
               </div>
-              <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium cursor-pointer text-white hover:bg-indigo-500">Send Invite</button>
+              <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium cursor-pointer text-white hover:bg-indigo-500">Send Admin Invite & Register School</button>
             </form>
           </Card>
         )}
@@ -393,7 +442,7 @@ export default function SuperAdminDashboard() {
           <div className="space-y-6">
             <Card title="Add Task">
               <form onSubmit={handleAddTodo} className="flex gap-2 flex-wrap">
-                <select value={todoForm.type} onChange={e => setTodoForm({ ...todoForm, type: e.target.value })} className="bg-gray-900 border border-gray-700 p-2.5 rounded-lg text-sm text-white">
+                <select value={todoForm.type} onChange={e => setTodos({ ...todos, type: e.target.value })} className="bg-gray-900 border border-gray-700 p-2.5 rounded-lg text-sm text-white">
                   <option>Task</option>
                   <option>Custom Request</option>
                   <option>Bug</option>

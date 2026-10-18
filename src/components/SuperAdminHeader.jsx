@@ -105,13 +105,19 @@ export default function SuperAdminDashboard() {
 
   const handleSendInvite = async (e) => {
     e.preventDefault();
-    if (!invitePrincipalName || !inviteSchoolName || !inviteSchoolSlug || !inviteContactEmail) {
-      alert('Please fill out all fields to send the invite.');
+    if (!invitePrincipalName || !inviteSchoolName || !inviteContactEmail) {
+      alert('Please fill out all required fields.');
       return;
     }
 
+    const finalSlug = inviteSchoolSlug && inviteSchoolSlug.trim() !== '' 
+      ? inviteSchoolSlug 
+      : inviteSchoolName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+
+    // 1. Register the school in the database
     const { error: schoolError } = await supabase.from('schools').insert([{
-      name: inviteSchoolName,
+      name: inviteSchoolName.trim(),
+      slug: finalSlug.trim(),
       status: 'Contract',
       students: 0,
       renewal_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -122,23 +128,68 @@ export default function SuperAdminDashboard() {
       return;
     }
 
-    const { error: inviteError } = await supabase.auth.resetPasswordForEmail(inviteContactEmail, {
-      redirectTo: `${window.location.origin}/${inviteSchoolSlug}/admin`,
+    // Save current admin session so signUp doesn't overwrite it
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentSession = sessionData?.session;
+
+    // 2. Provision Auth Account via SignUp
+    const tempPassword = `Temp-${Math.random().toString(36).slice(-8)}!`;
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: inviteContactEmail.trim(),
+      password: tempPassword,
+      options: {
+        emailRedirectTo: `${window.location.origin}/${finalSlug}/admin`,
+        data: {
+          full_name: invitePrincipalName,
+          role: 'principal',
+          school_slug: finalSlug
+        }
+      }
     });
 
-    if (inviteError) {
-      alert('School registered, but error sending reset email: ' + inviteError.message);
-    } else {
-      alert(`Successfully invited ${invitePrincipalName} for ${inviteSchoolName} (${inviteSchoolSlug})!`);
+    // Restore Super Admin session immediately so dashboard remains authenticated
+    if (currentSession) {
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
     }
 
-    logAction(`Invited principal ${invitePrincipalName} for school ${inviteSchoolName} (Slug: ${inviteSchoolSlug})`);
+    if (signUpError) {
+      console.warn("Auth signup note:", signUpError.message);
+    }
+
+    // 3. Trigger password setup email
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(inviteContactEmail.trim(), {
+      redirectTo: `${window.location.origin}/${finalSlug}/admin`,
+    });
+
+    if (resetError) {
+      alert('School registered, but password reset email failed: ' + resetError.message);
+    } else {
+      alert(`Successfully registered ${inviteSchoolName}, created Auth user, and sent invitation email to ${inviteContactEmail}!`);
+    }
+
+    await logAction(`Invited principal ${invitePrincipalName} for school ${inviteSchoolName} (Slug: ${finalSlug})`);
     
     setInvitePrincipalName('');
     setInviteSchoolName('');
     setInviteSchoolSlug('');
     setInviteContactEmail('');
     fetchSchools();
+  };
+
+  const handleDeleteSchool = async (schoolId, schoolName) => {
+    if (!window.confirm(`Are you sure you want to delete ${schoolName}?`)) return;
+
+    const { error } = await supabase.from('schools').delete().eq('id', schoolId);
+    if (error) {
+      alert('Error deleting school: ' + error.message);
+    } else {
+      alert(`Successfully removed ${schoolName}. You can now re-add it.`);
+      await logAction(`Deleted school: ${schoolName}`);
+      fetchSchools();
+    }
   };
 
   const updateSchoolStatus = async (schoolId, schoolName, nextStatus) => {
@@ -246,7 +297,7 @@ export default function SuperAdminDashboard() {
                         </td>
                         <td className="p-4 text-gray-300">{school.students || 'N/A'}</td>
                         <td className="p-4 text-gray-300">{school.renewal_date || 'N/A'}</td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right space-x-2">
                           <button 
                             onClick={() => {
                               const nextStatus = school.status === 'Pilot' ? 'Contract' : 'Due for renewal';
@@ -290,7 +341,11 @@ export default function SuperAdminDashboard() {
                     type="text"
                     placeholder="e.g., Oakridge High"
                     value={inviteSchoolName}
-                    onChange={(e) => setInviteSchoolName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setInviteSchoolName(val);
+                      setInviteSchoolSlug(val.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-'));
+                    }}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-sm text-gray-200 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -334,8 +389,14 @@ export default function SuperAdminDashboard() {
                     <div>
                       <span className="text-xs text-indigo-400 font-mono font-semibold uppercase">{s.status}</span>
                       <h4 className="text-sm font-bold text-white">{s.name}</h4>
-                      <span className="text-xs text-gray-400">Route URL: /{(s.name || '').toLowerCase().replace(/\s+/g, '-')}/admin</span>
+                      <span className="text-xs text-gray-400">Route URL: /{s.slug || (s.name || '').toLowerCase().replace(/\s+/g, '-')}/admin</span>
                     </div>
+                    <button
+                      onClick={() => handleDeleteSchool(s.id, s.name)}
+                      className="text-xs bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
               </div>

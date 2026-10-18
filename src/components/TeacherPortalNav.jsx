@@ -2,38 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 export default function TeacherPortalNav({ activeTab, schoolSlug }) {
-  const [enabledFeatures, setEnabledFeatures] = useState({});
+  const [features, setFeatures] = useState({});
 
   useEffect(() => {
-    async function fetchFlags() {
+    async function fetchSchoolFeatures() {
       if (!schoolSlug) return;
-      const { data, error } = await supabase
-        .from('school_feature_flags')
-        .select('feature_key, is_enabled')
-        .eq('school_slug', schoolSlug)
-        .eq('role', 'teacher');
+      
+      // 1. Get the school ID using the schoolSlug
+      const { data: schoolData } = await supabase
+        .from('schools')
+        .select('id')
+        .eq('slug', schoolSlug)
+        .single();
 
-      if (!error && data) {
-        const flags = {};
-        data.forEach(row => { flags[row.feature_key] = row.is_enabled; });
-        setEnabledFeatures(flags);
+      if (!schoolData?.id) return;
+
+      // 2. Fetch the feature matrix JSON blob from school_features
+      const { data, error } = await supabase
+        .from('school_features')
+        .select('features')
+        .eq('school_id', schoolData.id)
+        .single();
+
+      if (!error && data?.features) {
+        setFeatures(data.features);
       }
     }
-    fetchFlags();
+    fetchSchoolFeatures();
   }, [schoolSlug]);
 
+  // Map each navbar item to its exact camelCase key from defaultFeatures
   const allNavItems = [
-    { name: 'Overview', key: 'overview', path: `/${schoolSlug}/teacher` },
-    { name: 'School Hub', key: 'hub', path: `/${schoolSlug}/teacher/hub` },
-    { name: 'Homework', key: 'homework', path: `/${schoolSlug}/teacher/homework` },
-    { name: 'Report Cards', key: 'report_cards', path: `/${schoolSlug}/teacher/report-cards` },
-    { name: 'Behaviour', key: 'behaviour', path: `/${schoolSlug}/teacher/behaviour` },
-    { name: 'Events', key: 'events', path: `/${schoolSlug}/teacher/events` },
-    { name: 'Sports Management', key: 'sports', path: `/${schoolSlug}/teacher/sports` },
-    { name: 'Attendance', key: 'attendance', path: `/${schoolSlug}/teacher/attendance` },
+    { name: 'Overview', key: 'teacherOverview', path: `/${schoolSlug}/teacher` },
+    { name: 'Daily Schedule', key: 'teacherDailySchedule', path: `/${schoolSlug}/teacher/schedule` },
+    { name: 'Events', key: 'teacherEvents', path: `/${schoolSlug}/teacher/events` },
+    { name: 'Homework', key: 'teacherHomework', path: `/${schoolSlug}/teacher/homework` },
+    { name: 'School Hub', key: 'teacherHub', path: `/${schoolSlug}/teacher/hub` },
+    { name: 'Sports', key: 'teacherSports', path: `/${schoolSlug}/teacher/sports` },
+    { name: 'Report Cards', key: 'teacherReportCards', path: `/${schoolSlug}/teacher/report-cards` },
+    { name: 'Lost and Found', key: 'teacherLostAndFound', path: `/${schoolSlug}/teacher/lost-and-found` },
+    { name: 'Behavior', key: 'teacherBehavior', path: `/${schoolSlug}/teacher/behavior` },
   ];
 
-  const visibleItems = allNavItems.filter(item => enabledFeatures[item.key] !== false);
+  // Filter items based on the JSON feature matrix (defaults to true if undefined)
+  const visibleItems = allNavItems.filter(item => {
+    return features[item.key] !== false;
+  });
 
   return (
     <nav className="bg-[#111827] border-b border-gray-800 px-6 py-3 flex space-x-6 text-sm font-medium overflow-x-auto">
