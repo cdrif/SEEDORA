@@ -228,7 +228,22 @@ export default function SuperAdminDashboard() {
       return;
     }
 
-    // 2. Initialize default features for this newly created school in Supabase
+    // 2. Map invited Principal profile linked to school_id and role 'admin'
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert([{
+        email: form.email.trim().toLowerCase(),
+        full_name: form.principal.trim(),
+        role: 'admin',
+        school_id: schoolData.id,
+        updated_at: new Date().toISOString()
+      }], { onConflict: 'email' });
+
+    if (profileError) {
+      console.warn("Profile association notice:", profileError.message);
+    }
+
+    // 3. Initialize default features for this newly created school in Supabase
     if (schoolData?.id) {
       await supabase.from('school_features').upsert({
         school_id: schoolData.id,
@@ -237,7 +252,7 @@ export default function SuperAdminDashboard() {
       }, { onConflict: 'school_id' });
     }
 
-    // 3. Send password reset / invite email to principal directed to update-password page
+    // 4. Send password reset / invite email to principal directed to update-password page
     const { error: authError } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { 
       redirectTo: `${window.location.origin}/update-password` 
     });
