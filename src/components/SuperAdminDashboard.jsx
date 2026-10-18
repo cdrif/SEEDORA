@@ -190,7 +190,6 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  // Auto-generate URL slug when school name changes if slug is empty or matches previous auto-slug
   const handleSchoolNameChange = (e) => {
     const val = e.target.value;
     const generatedSlug = val.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
@@ -212,7 +211,6 @@ export default function SuperAdminDashboard() {
       ? form.slug 
       : form.school.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
 
-    // 1. Insert school with guaranteed non-null slug and status
     const { data: schoolData, error: insertError } = await supabase
       .from('schools')
       .insert([{ 
@@ -228,8 +226,7 @@ export default function SuperAdminDashboard() {
       return;
     }
 
-    // 2. Map invited Principal profile linked to school_id and role 'admin'
-    const { error: profileError } = await supabase
+    await supabase
       .from('profiles')
       .upsert([{
         email: form.email.trim().toLowerCase(),
@@ -239,11 +236,6 @@ export default function SuperAdminDashboard() {
         updated_at: new Date().toISOString()
       }], { onConflict: 'email' });
 
-    if (profileError) {
-      console.warn("Profile association notice:", profileError.message);
-    }
-
-    // 3. Initialize default features for this newly created school in Supabase
     if (schoolData?.id) {
       await supabase.from('school_features').upsert({
         school_id: schoolData.id,
@@ -252,7 +244,6 @@ export default function SuperAdminDashboard() {
       }, { onConflict: 'school_id' });
     }
 
-    // 4. Send password reset / invite email to principal directed to update-password page
     const { error: authError } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { 
       redirectTo: `${window.location.origin}/update-password` 
     });
@@ -298,7 +289,6 @@ export default function SuperAdminDashboard() {
 
   const activeSchoolObj = schools.find(s => s.id === selectedSchoolId);
   
-  // Fully merged current matrix ensuring all default keys plus database/local edits are rendered
   const currentMatrix = {
     ...defaultFeatures,
     ...(featuresData[selectedSchoolId] || {}),
@@ -316,7 +306,6 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
-        {/* TAB 1: SCHOOLS */}
         {tab === 'schools' && (
           <section className="space-y-4">
             <div className="flex flex-wrap gap-3 rounded-xl border border-gray-800 bg-[#0b0f19] p-4 items-center justify-between">
@@ -363,7 +352,6 @@ export default function SuperAdminDashboard() {
           </section>
         )}
 
-        {/* TAB 2: INVITES */}
         {tab === 'invites' && (
           <Card title="Invite School Principal & Register School">
             <form onSubmit={handleInvite} className="space-y-4 max-w-md">
@@ -388,7 +376,6 @@ export default function SuperAdminDashboard() {
           </Card>
         )}
 
-        {/* TAB 3: MATRIX */}
         {tab === 'matrix' && (
           <Card title={`Feature Access Matrix: ${activeSchoolObj?.name || 'Select school'}`}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -449,7 +436,6 @@ export default function SuperAdminDashboard() {
           </Card>
         )}
 
-        {/* TAB 4: BUGS */}
         {tab === 'bugs' && (
           <Table>
             {bugs.length === 0 ? (
@@ -468,7 +454,6 @@ export default function SuperAdminDashboard() {
           </Table>
         )}
 
-        {/* TAB 5: TODO */}
         {tab === 'todo' && (
           <div className="space-y-6">
             <Card title="Add Task">
@@ -503,7 +488,6 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
-        {/* TAB 6: AUDIT */}
         {tab === 'audit' && (
           <Table>
             {logs.length === 0 ? (

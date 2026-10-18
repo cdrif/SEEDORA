@@ -8,7 +8,6 @@ export default function ParentPortalNav({ activeTab, schoolSlug }) {
     async function fetchSchoolFeatures() {
       if (!schoolSlug) return;
       
-      // 1. Get the school ID using the schoolSlug
       const { data: schoolData } = await supabase
         .from('schools')
         .select('id')
@@ -17,7 +16,6 @@ export default function ParentPortalNav({ activeTab, schoolSlug }) {
 
       if (!schoolData?.id) return;
 
-      // 2. Fetch the feature matrix JSON blob from school_features
       const { data, error } = await supabase
         .from('school_features')
         .select('features')
@@ -31,7 +29,6 @@ export default function ParentPortalNav({ activeTab, schoolSlug }) {
     fetchSchoolFeatures();
   }, [schoolSlug]);
 
-  // Map each navbar item to its exact camelCase key from defaultFeatures
   const allNavItems = [
     { name: 'Overview', key: 'parentOverview', path: `/${schoolSlug}/parent` },
     { name: 'Daily Schedule', key: 'parentDailySchedule', path: `/${schoolSlug}/parent/schedule` },
@@ -47,7 +44,6 @@ export default function ParentPortalNav({ activeTab, schoolSlug }) {
     { name: 'Behavior', key: 'parentBehavior', path: `/${schoolSlug}/parent/behavior` },
   ];
 
-  // Filter items based on the JSON feature matrix (defaults to true if undefined)
   const visibleItems = allNavItems.filter(item => {
     return features[item.key] !== false;
   });

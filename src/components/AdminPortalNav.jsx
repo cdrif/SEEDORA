@@ -81,7 +81,6 @@ export default function AdminDashboard() {
         const fetchedSlug = memberData.school_slug;
         setSchoolSlug(fetchedSlug);
 
-        // Fetch School Branding / Config & Feature Matrix
         const { data: schoolData } = await supabase
           .from('schools')
           .select('*')
@@ -94,7 +93,6 @@ export default function AdminDashboard() {
             logoUrl: schoolData.logo_url || "https://api.iconify.design/lucide:graduation-cap.svg?color=%2306b6d4"
           });
 
-          // Fetch feature flags from school_features using school_id
           const { data: featData } = await supabase
             .from('school_features')
             .select('features')
@@ -170,7 +168,6 @@ export default function AdminDashboard() {
     verifyAndFetchAdminData();
   }, []);
 
-  // Generate Barcode whenever selected student changes
   useEffect(() => {
     if (currentSelectedStudent && barcodeRef.current) {
       try {
@@ -556,13 +553,9 @@ export default function AdminDashboard() {
         ) : (
           <div className="space-y-8">
             
-            {/* SPLIT LAYOUT: LEFT SIDE ADMIN TOOLS & RIGHT SIDE INTEGRATED DIGITAL ID SUITE */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-              {/* LEFT COLUMN: Admin Management Panels */}
               <div className="lg:col-span-8 space-y-8">
                 
-                {/* Direct Teacher Account Provisioning Panel */}
                 <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-gray-100">Register New Teacher Account</h2>
                   <p className="text-sm text-gray-400 mb-4">Directly provision a teacher profile bound to your school slug with pre-assigned role privileges.</p>
@@ -607,7 +600,6 @@ export default function AdminDashboard() {
                   </form>
                 </div>
 
-                {/* Teacher Invite Link Generation Section */}
                 <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-gray-100">Generate Secure Teacher Invite Link</h2>
                   <p className="text-sm text-gray-400 mb-4">Create an automated registration link for a new teacher bound to your school.</p>
@@ -642,7 +634,6 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* Data Ingestion & CSV Import Panel */}
                 <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-gray-100">Bulk Data Ingestion (CSV)</h2>
                   <p className="text-sm text-gray-400 mb-4">Import student directories or generate teacher invite slots in bulk using standard CSV format.</p>
@@ -696,7 +687,6 @@ export default function AdminDashboard() {
                   </form>
                 </div>
 
-                {/* Manual Student-Teacher Linking Panel with Consent Provenance */}
                 <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-gray-100">Manual Student-Teacher Linking</h2>
                   <p className="text-sm text-gray-400 mb-4">Manually assign a student relationship mapping and record administrative approval with proof of authorization.</p>
@@ -757,9 +747,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: INTEGRATED DIGITAL ID & VIRTUAL WALLET SUITE */}
               <div className="lg:col-span-4 space-y-6">
-                
                 <div className="bg-[#111827] border border-cyan-500/30 rounded-xl p-5 shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-600"></div>
                   <h2 className="text-sm font-bold tracking-wide text-cyan-400 uppercase mb-1">Virtual Student ID Suite</h2>
@@ -912,12 +900,9 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
-
               </div>
-
             </div>
 
-            {/* REPORT CARDS SELECTOR & BATCH ACTIONS PANEL */}
             <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-100">Student Report Cards & Batch Actions</h2>
               <p className="text-sm text-gray-400 mb-4">Search and select students by grade level for preview or bulk printing operations.</p>
@@ -988,9 +973,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* SPLIT-PANEL CARD LAYOUT FOR ALERTS & BROADCASTS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
               <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 relative overflow-hidden shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-100">Critical Alerts Centre</h2>
                 <p className="text-sm text-gray-400 mb-4">Send instant push notifications exclusively to registered teachers.</p>
@@ -1060,10 +1043,8 @@ export default function AdminDashboard() {
                   </button>
                 </form>
               </div>
-
             </div>
 
-            {/* School Student Directory & Compliance Mapping */}
             <div className="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -1101,23 +1082,15 @@ export default function AdminDashboard() {
                         const isLinked = links.length > 0;
                         return (
                           <tr key={student.id} className="hover:bg-gray-900/30 transition-colors"> 
-                            <td className="py-3 px-6 text-gray-200 font-sans font-medium">
-                              {student.first_name}
-                            </td>
-                            <td className="py-3 px-6 text-gray-200 font-sans font-medium">
-                              {student.last_name}
-                            </td>
-                            <td className="py-3 px-6 text-gray-300">
-                              {student.grade_level || '—'}
-                            </td>
+                            <td className="py-3 px-6 text-gray-200 font-sans font-medium">{student.first_name}</td>
+                            <td className="py-3 px-6 text-gray-200 font-sans font-medium">{student.last_name}</td>
+                            <td className="py-3 px-6 text-gray-300">{student.grade_level || '—'}</td>
                             <td className="py-3 px-6">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold ${isLinked ? 'bg-green-950 text-green-300 border border-green-800' : 'bg-amber-950 text-amber-300 border border-amber-800'}`}>
                                 {isLinked ? 'Linked' : 'Pending Link'}
                               </span>
                             </td>
-                            <td className="py-3 px-6 text-gray-500">
-                              {isLinked ? links.map(l => l.parent_id).join(', ') : 'None'}
-                            </td>
+                            <td className="py-3 px-6 text-gray-500">{isLinked ? links.map(l => l.parent_id).join(', ') : 'None'}</td>
                           </tr>
                         );
                       })}
@@ -1127,7 +1100,6 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Compliance Audit Trail Section */}
             <div className="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                 <h3 className="text-base font-semibold text-gray-100">Compliance Audit Trail</h3>
@@ -1152,18 +1124,10 @@ export default function AdminDashboard() {
                     <tbody className="divide-y divide-gray-800/60 font-mono text-xs">
                       {auditLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-gray-900/30 transition-colors"> 
-                          <td className="py-3 px-6 text-gray-300">
-                            {new Date(log.created_at).toLocaleString()}
-                          </td>
-                          <td className="py-3 px-6 text-indigo-400 font-semibold">
-                            {log.action}
-                          </td>
-                          <td className="py-3 px-6 text-gray-300">
-                            {log.details || '—'}
-                          </td>
-                          <td className="py-3 px-6 text-gray-500">
-                            {log.user_id ? `${log.user_id.slice(0, 8)}...` : 'System'}
-                          </td>
+                          <td className="py-3 px-6 text-gray-300">{new Date(log.created_at).toLocaleString()}</td>
+                          <td className="py-3 px-6 text-indigo-400 font-semibold">{log.action}</td>
+                          <td className="py-3 px-6 text-gray-300">{log.details || '—'}</td>
+                          <td className="py-3 px-6 text-gray-500">{log.user_id ? `${log.user_id.slice(0, 8)}...` : 'System'}</td>
                         </tr>
                       ))}
                     </tbody>
