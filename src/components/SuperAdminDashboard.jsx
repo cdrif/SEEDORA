@@ -237,9 +237,9 @@ export default function SuperAdminDashboard() {
       }, { onConflict: 'school_id' });
     }
 
-    // 3. Send password reset / invite email to principal
+    // 3. Send password reset / invite email to principal directed to update-password page
     const { error: authError } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { 
-      redirectTo: `${window.location.origin}/${finalSlug}/admin` 
+      redirectTo: `${window.location.origin}/update-password` 
     });
 
     if (authError) {

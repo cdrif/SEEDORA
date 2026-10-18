@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase'; // Adjust path if supabase.js is in a subfolder
 import Splash from './components/Splash';
 import Login from './components/Login';
+import UpdatePassword from './components/UpdatePassword';
 import ParentEvents from './components/Parent-Events';
 import TeachEvents from './components/Teach-Events';
 import AdminEvents from './components/Admin-Events';
@@ -43,6 +44,9 @@ export default function App() {
 
         {/* Public Login Route */}
         <Route path="/login" element={<Login />} />
+
+        {/* Password Update / Invite Set Password Route */}
+        <Route path="/update-password" element={<UpdatePassword />} />
 
         {/* Super Admin Management Dashboard Route */}
         <Route path="/superadmin" element={<SuperAdminDashboard />} />

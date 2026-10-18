@@ -196,7 +196,7 @@ export default function SuperAdminDashboard() {
       email: inviteContactEmail.trim(),
       password: tempPassword,
       options: {
-        emailRedirectTo: `${window.location.origin}/${finalSlug}/admin`,
+        emailRedirectTo: `${window.location.origin}/update-password`,
         data: { full_name: invitePrincipalName, role: 'principal', school_slug: finalSlug }
       }
     });
@@ -209,7 +209,7 @@ export default function SuperAdminDashboard() {
     }
 
     await supabase.auth.resetPasswordForEmail(inviteContactEmail.trim(), {
-      redirectTo: `${window.location.origin}/${finalSlug}/admin`,
+      redirectTo: `${window.location.origin}/update-password`,
     });
 
     await logAction(`Invited principal ${invitePrincipalName} for school ${inviteSchoolName} (Slug: ${finalSlug})`);
