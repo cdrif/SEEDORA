@@ -102,13 +102,12 @@ export default function Login() {
           return;
         }
 
-        // 2. Fallback: Check profiles table
-        const profileResult = await supabase.from('profiles').select('role, school_slug, schools(slug)').eq('id', userId).maybeSingle();
+        // 2. Fallback: Check profiles table directly without joining schools table
+        const profileResult = await supabase.from('profiles').select('role, school_slug').eq('id', userId).maybeSingle();
 
         if (profileResult.data) {
           const profile = profileResult.data;
-          const schoolData = Array.isArray(profile.schools) ? profile.schools[0] : profile.schools;
-          const slug = profile.school_slug || schoolData?.slug || 'default-school';
+          const slug = profile.school_slug || 'default-school';
           const userRole = profile.role || 'admin';
           window.location.replace(`/${slug}/${userRole}`);
           return;
