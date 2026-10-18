@@ -90,7 +90,27 @@ export default function Login() {
           return;
         }
 
-        // 1. Try checking school_members safely (won't crash out if table query errors)
+        // 1. Check profiles table first (where principals and school admins live)
+        const profileResult = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+        console.log("Direct profile fetch:", profileResult);
+
+        if (profileResult && profileResult.data) {
+          const profile = profileResult.data;
+          let slug = profile.school_slug;
+
+          // If school_slug isn't directly on the profile, fetch it from the schools table using school_id
+          if (!slug && profile.school_id) {
+            const schoolResult = await supabase.from('schools').select('slug').eq('id', profile.school_id).maybeSingle();
+            slug = schoolResult.data?.slug;
+          }
+
+          const finalSlug = slug || 'aspley-state-high-school';
+          const userRole = profile.role || 'admin';
+          window.location.replace(`/${finalSlug}/${userRole}`);
+          return;
+        }
+
+        // 2. Fallback: Check school_members table (for parents/teachers)
         try {
           const memberResult = await supabase.from('school_members').select('role, schools(slug)').eq('user_id', userId).maybeSingle();
           if (memberResult && memberResult.data) {
@@ -102,19 +122,7 @@ export default function Login() {
             return;
           }
         } catch (memErr) {
-          console.log("school_members check skipped/errored, checking profiles...", memErr);
-        }
-
-        // 2. Fallback: Check profiles table directly
-        const profileResult = await supabase.from('profiles').select('role, school_slug').eq('id', userId).maybeSingle();
-        console.log("Profile query result:", profileResult);
-
-        if (profileResult && profileResult.data) {
-          const profile = profileResult.data;
-          const slug = profile.school_slug || 'default-school';
-          const userRole = profile.role || 'admin';
-          window.location.replace(`/${slug}/${userRole}`);
-          return;
+          console.log("school_members check skipped/errored:", memErr);
         }
 
         throw new Error('No school profile found for this user and you are not a platform admin.');
