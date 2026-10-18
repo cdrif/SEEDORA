@@ -511,7 +511,7 @@ export default function AdminDashboard() {
     { name: 'Facilities', key: 'adminFacilities', path: `/${schoolSlug}/admin/facilities` },
   ];
 
-  // Filter out any items explicitly disabled in Supabase jsonb matrix (defaults to true)
+  // Filter out items disabled in Supabase jsonb matrix
   const visibleNavItems = allNavItems.filter(item => features[item.key] !== false);
 
   return (
