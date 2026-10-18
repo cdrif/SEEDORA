@@ -375,7 +375,7 @@ export default function SuperAdminDashboard() {
 
         {/* TAB 3: MATRIX */}
         {tab === 'matrix' && (
-          <Card title={`Feature Matrix: ${activeSchoolObj?.name || 'Select school'}`}>
+          <Card title={`Feature Access Matrix: ${activeSchoolObj?.name || 'Select school'}`}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <select 
                 value={selectedSchoolId} 
@@ -400,19 +400,35 @@ export default function SuperAdminDashboard() {
               </div>
             )}
 
-            <div className="space-y-2 max-h-[550px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2">
               {Object.entries(currentMatrix).map(([key, val]) => (
-                <button 
+                <div 
                   key={key} 
-                  type="button"
-                  onClick={() => handleToggleFeatureLocal(key)} 
-                  className="block w-full p-3 rounded-lg border border-gray-800 text-left hover:bg-gray-900/50 cursor-pointer text-sm transition-colors"
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-gray-800 bg-[#07090e] hover:border-gray-700 transition-colors"
                 >
-                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</span> 
-                  <span className={`float-right font-semibold ${val ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {val ? 'ON' : 'OFF'}
-                  </span>
-                </button>
+                  <div>
+                    <span className="text-sm font-medium text-white capitalize">
+                      {key.replace(/([A-Z])/g, ' $1')}
+                    </span>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Toggles visibility and availability on student/staff nav bar.
+                    </p>
+                  </div>
+                  
+                  <button 
+                    type="button"
+                    onClick={() => handleToggleFeatureLocal(key)} 
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                      val ? 'bg-indigo-600' : 'bg-gray-800'
+                    }`}
+                  >
+                    <span 
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        val ? 'translate-x-6' : 'translate-x-1'
+                      }`} 
+                    />
+                  </button>
+                </div>
               ))}
             </div>
           </Card>
