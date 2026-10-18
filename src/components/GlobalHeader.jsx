@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { executeLogout } from './authLogout';
 import { supabase } from '../lib/supabase';
-import LanguageSelector from './LanguageSelector'; // Import component
+import LanguageSelector from './LanguageSelector';[cite: 6]
 
 export default function GlobalHeader() {
   const { schoolSlug } = useParams();
@@ -82,7 +82,7 @@ export default function GlobalHeader() {
         </div>
 
         {/* Clean Component-Managed Language Selector */}
-        <LanguageSelector />
+        <LanguageSelector />[cite: 6]
 
         <button
           onClick={handleLogout}
