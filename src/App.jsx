@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabase'; // Adjust path if supabase.js is in a subfolder
+import { supabase } from './lib/supabase';
 import Splash from './components/Splash';
 import Login from './components/Login';
 import UpdatePassword from './components/UpdatePassword';
 import ParentEvents from './components/Parent-Events';
 import TeachEvents from './components/Teach-Events';
-import AdminEvents from './components/Admin-Events';
+import AdminPortalNav from './components/AdminPortalNav'; // <-- Updated to active file name
 import SportsManagementAdmin from './components/SportsManagementAdmin';
 import SportsManagementTeacher from './components/SportsManagementTeacher';
 import SportsViewParent from './components/SportsViewParent';
@@ -57,7 +57,9 @@ export default function App() {
         {/* Dynamic Role Routes */}
         <Route path="/:schoolSlug/parent" element={<ParentEvents />} />
         <Route path="/:schoolSlug/teacher" element={<TeachEvents />} />
-        <Route path="/:schoolSlug/admin" element={<AdminEvents />} />
+        
+        {/* Active Feature-Flagged Admin Portal Route */}
+        <Route path="/:schoolSlug/admin" element={<AdminPortalNav />} />
 
         {/* Sports Day & Carnivals Modules */}
         <Route path="/:schoolSlug/admin/sports" element={<SportsManagementAdmin />} />
