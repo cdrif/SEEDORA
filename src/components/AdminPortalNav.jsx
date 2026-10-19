@@ -81,6 +81,7 @@ export default function AdminDashboard() {
         const fetchedSlug = memberData.school_slug;
         setSchoolSlug(fetchedSlug);
 
+        // Fixed: Query only columns that exist on the schools table
         const { data: schoolData } = await supabase
           .from('schools')
           .select('*')
@@ -88,10 +89,10 @@ export default function AdminDashboard() {
           .single();
 
         if (schoolData) {
-          setSchoolConfig({
-            schoolName: schoolData.name || "School Portal",
-            logoUrl: schoolData.logo_url || "https://api.iconify.design/lucide:graduation-cap.svg?color=%2306b6d4"
-          });
+          setSchoolConfig(prev => ({
+            ...prev,
+            schoolName: schoolData.name || "School Portal"
+          }));
 
           const { data: featData } = await supabase
             .from('school_features')
