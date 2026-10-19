@@ -88,22 +88,23 @@ export default function Login() {
           return;
         }
 
-        // Try standard profile lookup
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
+        // Fetch user's active school membership slug and role directly from school_members
+        const { data: memberData } = await supabase
+          .from('school_members')
+          .select('school_slug, role')
+          .eq('user_id', userId)
           .maybeSingle();
 
-        if (profile) {
-          const slug = profile.school_slug || 'aspley-state-high-school';
-          const userRole = profile.role || 'admin';
-          window.location.replace(`/${slug}/${userRole}`);
+        if (memberData && memberData.school_slug) {
+          let targetRole = memberData.role || 'admin';
+          if (targetRole === 'admin_principal') targetRole = 'admin';
+          
+          window.location.replace(`/${memberData.school_slug}/${targetRole}`);
           return;
         }
 
-        // FORCE REDIRECT BYPASS: Instantly route you to your school dashboard
-        window.location.replace('/aspley-state-high-school/admin');
+        // Fallback if no school membership row found
+        window.location.replace('/default-school/admin');
         return;
       }
 
