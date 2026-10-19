@@ -73,7 +73,8 @@ export default function AdminDashboard() {
           .eq('user_id', user.id)
           .single();
 
-        if (memberError || !memberData || memberData.role !== 'admin') {
+        // Updated to support both 'admin' and 'admin_principal' database constraints
+        if (memberError || !memberData || (memberData.role !== 'admin' && memberData.role !== 'admin_principal')) {
           throw new Error('Access denied: Administrator privileges required.');
         }
 
@@ -81,7 +82,6 @@ export default function AdminDashboard() {
         const fetchedSlug = memberData.school_slug;
         setSchoolSlug(fetchedSlug);
 
-        // Fixed: Query only columns that exist on the schools table
         const { data: schoolData } = await supabase
           .from('schools')
           .select('*')
