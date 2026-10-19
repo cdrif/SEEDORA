@@ -98,7 +98,7 @@ export default function AdminDashboard() {
             .from('school_features')
             .select('features')
             .eq('school_id', schoolData.id)
-            .single();
+            .maybeSingle(); // Changed from .single() to prevent login bounce if features row is missing
 
           if (featData?.features) {
             setFeatures(featData.features);
