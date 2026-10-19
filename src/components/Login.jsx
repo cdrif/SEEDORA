@@ -25,10 +25,10 @@ export default function Login() {
     };
   }, []);
 
-  // List of registered schools available across your platform
+  // System school options updated with explicit, valid UUID strings to match your database schema
   const availableSchools = [
-    { id: 'default-school-id', name: 'Default Academy', slug: 'default-school' },
-    { id: 'seedora-high-id', name: 'Seedora Central High', slug: 'seedora-high' }
+    { id: '00000000-0000-0000-0000-000000000001', name: 'Default Academy', slug: 'default-school' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Seedora Central High', slug: 'seedora-high' }
   ];
 
   const handleSubmit = async (e) => {
