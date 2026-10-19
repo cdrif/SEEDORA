@@ -17,7 +17,6 @@ export default function Login() {
   useEffect(() => {
     isMounted.current = true;
 
-    // Fetch live schools from the database for the dropdown
     async function fetchSchools() {
       try {
         const { data, error } = await supabase.from('schools').select('id, name, slug');
@@ -61,7 +60,6 @@ export default function Login() {
 
         const chosenSchool = availableSchools.find((s) => s.slug === selectedSchoolSlug) || availableSchools[0];
         
-        // Insert parent membership linked to the selected school
         await supabase
           .from('school_members')
           .insert([{ 
@@ -83,7 +81,6 @@ export default function Login() {
         if (authError) throw authError;
         const userId = authData.user.id;
 
-        // 1. Check if user is a platform superadmin
         const { data: adminRecord } = await supabase
           .from('platform_admins')
           .select('*')
@@ -95,7 +92,6 @@ export default function Login() {
           return;
         }
 
-        // 2. Check school_members for tenant slug and admin/teacher/parent role
         const { data: memberData, error: memberError } = await supabase
           .from('school_members')
           .select('school_slug, role')
@@ -165,7 +161,9 @@ export default function Login() {
 
         {isSignUp && (
           <div>
-            <label className="text-sm text-gray-400">Select School</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Select Registered School * <span className="text-xs text-red-400">(Mandatory)</span>
+            </label>
             <select
               value={selectedSchoolSlug}
               onChange={(e) => setSelectedSchoolSlug(e.target.value)}
@@ -221,86 +219,6 @@ export default function Login() {
           </button>
         </div>
       </form>
-    </div>
-  );
-}           Select Registered School * <span className="text-xs text-red-400">(Mandatory)</span>
-                </label>
-                <select
-                  value={selectedSchoolSlug}
-                  onChange={(e) => setSelectedSchoolSlug(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer"
-                  required
-                >
-                  <option value="" disabled hidden>-- Select your school --</option>
-                  {availableSchools.map((school) => (
-                    <option key={school.id} value={school.slug}>
-                      {school.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-sm cursor-pointer pt-2"
-            >
-              {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Login')}
-            </button>
-
-            {/* Compliance Checkboxes Layout */}
-            <div className="pt-3 border-t border-gray-800 space-y-3">
-              <div className="flex items-start space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="privacy-consent"
-                  checked={agreedToPrivacy}
-                  onChange={(e) => setAgreedToPrivacy(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  required
-                />
-                <label htmlFor="privacy-consent" className="text-xs text-gray-400 leading-relaxed">
-                  I agree to the{' '}
-                  <a href="https://www.seedoraservices.com/privacy&terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                    Privacy Policy & Terms
-                  </a>.
-                </label>
-              </div>
-
-              <div className="flex items-start space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="cookie-consent"
-                  checked={agreedToCookies}
-                  onChange={(e) => setAgreedToCookies(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  required
-                />
-                <label htmlFor="cookie-consent" className="text-xs text-gray-400 leading-relaxed">
-                  I agree to data tracking and handling according to the{' '}
-                  <a href="https://www.seedoraservices.com/cookie-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                    Cookie Policy
-                  </a>.
-                </label>
-              </div>
-            </div>
-
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setSelectedSchoolSlug(''); // Reset selection when switching views
-                }}
-                className="text-xs text-indigo-400 hover:underline cursor-pointer"
-              >
-                {isSignUp ? 'Already have an account? Sign In' : "Don't have a parent account? Sign Up"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
     </div>
   );
 }
