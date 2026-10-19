@@ -206,7 +206,7 @@ export default function Login() {
               Privacy Policy & Terms
             </a>
             {' '}regarding data collection and handling.
-          </label>
+          </label> 
         </div>
 
         <div className="text-center pt-1">
