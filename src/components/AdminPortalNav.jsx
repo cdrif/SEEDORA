@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import GlobalHeader from './GlobalHeader';
+import BroadcastPanel from './BroadcastPanel';
 import JsBarcode from 'jsbarcode';
 import html2canvas from 'html2canvas';
 
@@ -73,7 +74,6 @@ export default function AdminDashboard() {
           .eq('user_id', user.id)
           .single();
 
-        // Updated to support both 'admin' and 'admin_principal' database constraints
         if (memberError || !memberData || (memberData.role !== 'admin' && memberData.role !== 'admin_principal')) {
           throw new Error('Access denied: Administrator privileges required.');
         }
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
             .from('school_features')
             .select('features')
             .eq('school_id', schoolData.id)
-            .maybeSingle(); // Changed from .single() to prevent login bounce if features row is missing
+            .maybeSingle();
 
           if (featData?.features) {
             setFeatures(featData.features);
@@ -496,7 +496,6 @@ export default function AdminDashboard() {
     ? students
     : students.filter(s => s.grade_level === reportGradeFilter);
 
-  // All available admin nav items mapped to Super Admin feature keys
   const allNavItems = [
     { name: 'Overview', key: 'adminOverview', path: `/${schoolSlug}/admin` },
     { name: 'Attendance', key: 'adminAttendance', path: `/${schoolSlug}/admin/attendance` },
@@ -512,14 +511,12 @@ export default function AdminDashboard() {
     { name: 'Facilities', key: 'adminFacilities', path: `/${schoolSlug}/admin/facilities` },
   ];
 
-  // Filter out items disabled in Supabase jsonb matrix
   const visibleNavItems = allNavItems.filter(item => features[item.key] !== false);
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white">
       <GlobalHeader /> 
       
-      {/* Dynamic Nav reflecting Super Admin Toggles */}
       <nav className="bg-[#111827] border-b border-gray-800 px-6 py-3 flex space-x-6 text-sm font-medium overflow-x-auto">
         {visibleNavItems.map((item) => {
           const isActive = item.name === 'Overview';
@@ -974,77 +971,20 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 relative overflow-hidden shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-100">Critical Alerts Centre</h2>
-                <p className="text-sm text-gray-400 mb-4">Send instant push notifications exclusively to registered teachers.</p>
-                
-                <form onSubmit={handleAlertSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-mono text-gray-400 mb-1">Authorised Sender:</label>
-                    <select 
-                      value={alertSender} 
-                      onChange={(e) => setAlertSender(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm text-white"
-                      required
-                    >
-                      <option value="" disabled>Select Admin...</option>
-                      {adminSenders.map((name, idx) => (
-                        <option key={idx} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-gray-400 mb-1">Alert Description / Message:</label>
-                    <textarea 
-                      value={alertMessage}
-                      onChange={(e) => setAlertMessage(e.target.value)}
-                      placeholder="Type critical alert message for teachers..."
-                      className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm text-white h-24 resize-none"
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors cursor-pointer">
-                    Send Push to Teachers
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 relative overflow-hidden shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-100">School Wide Broadcast System</h2>
-                <p className="text-sm text-gray-400 mb-4">Send broadcasts to verified parents linked under the school slug.</p>
-                
-                <form onSubmit={handleBroadcastSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-mono text-gray-400 mb-1">Authorised Sender:</label>
-                    <select 
-                      value={broadcastSender} 
-                      onChange={(e) => setBroadcastSender(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm text-white"
-                      required
-                    >
-                      <option value="" disabled>Select Admin...</option>
-                      {adminSenders.map((name, idx) => (
-                        <option key={idx} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-gray-400 mb-1">Broadcast Description / Message:</label>
-                    <textarea 
-                      value={broadcastMessage}
-                      onChange={(e) => setBroadcastMessage(e.target.value)}
-                      placeholder="Type school-wide message for verified parents..."
-                      className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm text-white h-24 resize-none"
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors cursor-pointer">
-                    Broadcast to Parents
-                  </button>
-                </form>
-              </div>
-            </div>
+            {/* Replaced inline alert/broadcast forms with imported BroadcastPanel component */}
+            <BroadcastPanel 
+              adminSenders={adminSenders}
+              alertSender={alertSender}
+              setAlertSender={setAlertSender}
+              alertMessage={alertMessage}
+              setAlertMessage={setAlertMessage}
+              onAlertSubmit={handleAlertSubmit}
+              broadcastSender={broadcastSender}
+              setBroadcastSender={setBroadcastSender}
+              broadcastMessage={broadcastMessage}
+              setBroadcastMessage={setBroadcastMessage}
+              onBroadcastSubmit={handleBroadcastSubmit}
+            />
 
             <div className="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
